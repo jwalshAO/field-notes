@@ -63,16 +63,8 @@
       z-index: 100;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
-    .header h1 {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-    }
-    .header-sub {
-      font-size: 11px;
-      opacity: 0.85;
-      font-weight: 400;
-    }
+    .header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+    .header-sub { font-size: 11px; opacity: 0.85; font-weight: 400; }
     .header-user {
       font-size: 13px;
       background: rgba(255,255,255,0.2);
@@ -157,7 +149,7 @@
       border: 1.5px solid var(--gray-300);
       border-top: none;
       border-radius: 0 0 10px 10px;
-      max-height: 220px;
+      max-height: 260px;
       overflow-y: auto;
       z-index: 50;
       box-shadow: 0 8px 24px rgba(0,0,0,0.12);
@@ -167,9 +159,6 @@
     .autocomplete-item {
       padding: 12px 14px;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 10px;
       border-bottom: 1px solid var(--gray-100);
       font-size: 15px;
     }
@@ -177,19 +166,19 @@
     .autocomplete-item:hover, .autocomplete-item.highlighted {
       background: var(--blue-50);
     }
-    .autocomplete-item .type-badge {
+    .ac-name { font-weight: 600; }
+    .ac-detail { font-size: 13px; color: var(--gray-500); margin-top: 2px; }
+    .ac-badge {
+      display: inline-block;
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       padding: 2px 8px;
       border-radius: 6px;
-      white-space: nowrap;
+      margin-left: 8px;
     }
-    .type-surgeon { background: var(--blue-100); color: var(--blue-700); }
-    .type-hospital { background: var(--green-100); color: var(--green-600); }
-    .type-manufacturer { background: var(--purple-100); color: var(--purple-500); }
-    .type-competitor { background: var(--orange-100); color: var(--orange-500); }
-    .type-other { background: var(--gray-200); color: var(--gray-700); }
+    .badge-active { background: var(--green-100); color: var(--green-600); }
+    .badge-prospect { background: var(--orange-100); color: var(--orange-500); }
     .autocomplete-create {
       padding: 12px 14px;
       cursor: pointer;
@@ -197,18 +186,19 @@
       font-weight: 600;
       font-size: 14px;
       border-top: 1px solid var(--gray-200);
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
     .autocomplete-create:hover { background: var(--blue-50); }
+    .autocomplete-freeform {
+      padding: 10px 14px;
+      cursor: pointer;
+      color: var(--gray-500);
+      font-size: 13px;
+      border-top: 1px solid var(--gray-200);
+    }
+    .autocomplete-freeform:hover { background: var(--gray-100); }
 
     /* Tags */
-    .tags-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
+    .tags-row { display: flex; flex-wrap: wrap; gap: 8px; }
     .tag-chip {
       padding: 5px 10px;
       border-radius: 14px;
@@ -243,10 +233,7 @@
       margin-top: 8px;
     }
     .btn-submit:hover { background: var(--blue-700); }
-    .btn-submit:disabled {
-      background: var(--gray-300);
-      cursor: not-allowed;
-    }
+    .btn-submit:disabled { background: var(--gray-300); cursor: not-allowed; }
 
     /* Success message */
     .success-toast {
@@ -264,9 +251,7 @@
       transition: transform 0.3s ease;
       z-index: 200;
     }
-    .success-toast.show {
-      transform: translateX(-50%) translateY(0);
-    }
+    .success-toast.show { transform: translateX(-50%) translateY(0); }
 
     /* Notes feed */
     .note-card {
@@ -283,33 +268,16 @@
       align-items: flex-start;
       margin-bottom: 8px;
     }
-    .note-card-subject {
-      font-weight: 700;
-      font-size: 15px;
-      color: var(--gray-900);
-    }
-    .note-card-date {
-      font-size: 12px;
-      color: var(--gray-500);
-      white-space: nowrap;
-    }
-    .note-card-meta {
-      font-size: 12px;
-      color: var(--gray-500);
-      margin-bottom: 8px;
-    }
+    .note-card-subject { font-weight: 700; font-size: 15px; color: var(--gray-900); }
+    .note-card-date { font-size: 12px; color: var(--gray-500); white-space: nowrap; }
+    .note-card-meta { font-size: 12px; color: var(--gray-500); margin-bottom: 8px; }
     .note-card-body {
       font-size: 14px;
       line-height: 1.55;
       color: var(--gray-700);
       white-space: pre-wrap;
     }
-    .note-card-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 10px;
-    }
+    .note-card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .note-tag {
       font-size: 11px;
       font-weight: 600;
@@ -320,11 +288,7 @@
     }
 
     /* Empty state */
-    .empty-state {
-      text-align: center;
-      padding: 48px 24px;
-      color: var(--gray-500);
-    }
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--gray-500); }
     .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
     .empty-state-text { font-size: 15px; }
 
@@ -338,17 +302,8 @@
       padding: 24px;
       background: linear-gradient(180deg, var(--blue-50) 0%, var(--white) 50%);
     }
-    .login-logo {
-      font-size: 28px;
-      font-weight: 800;
-      color: var(--blue-700);
-      margin-bottom: 4px;
-    }
-    .login-sub {
-      font-size: 14px;
-      color: var(--gray-500);
-      margin-bottom: 32px;
-    }
+    .login-logo { font-size: 28px; font-weight: 800; color: var(--blue-700); margin-bottom: 4px; }
+    .login-sub { font-size: 14px; color: var(--gray-500); margin-bottom: 32px; }
     .login-card {
       background: var(--white);
       border-radius: 16px;
@@ -357,11 +312,7 @@
       max-width: 360px;
       box-shadow: 0 4px 24px rgba(0,0,0,0.08);
     }
-    .login-card h2 {
-      font-size: 16px;
-      margin-bottom: 16px;
-      color: var(--gray-700);
-    }
+    .login-card h2 { font-size: 16px; margin-bottom: 16px; color: var(--gray-700); }
     .user-btn {
       width: 100%;
       padding: 14px 16px;
@@ -379,10 +330,7 @@
       align-items: center;
       justify-content: space-between;
     }
-    .user-btn:hover {
-      border-color: var(--blue-500);
-      background: var(--blue-50);
-    }
+    .user-btn:hover { border-color: var(--blue-500); background: var(--blue-50); }
     .user-btn .role-label {
       font-size: 11px;
       font-weight: 700;
@@ -416,20 +364,6 @@
       color: white;
     }
 
-    /* Contacts screen */
-    .contact-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px;
-      background: var(--white);
-      border-bottom: 1px solid var(--gray-100);
-    }
-    .contact-row:first-child { border-radius: 12px 12px 0 0; }
-    .contact-row:last-child { border-radius: 0 0 12px 12px; border-bottom: none; }
-    .contact-name { font-weight: 600; font-size: 14px; }
-    .contact-facility { font-size: 12px; color: var(--gray-500); }
-
     /* Spinner */
     .spinner {
       display: inline-block;
@@ -442,7 +376,7 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Add contact modal */
+    /* Add surgeon modal */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -467,37 +401,17 @@
       from { transform: translateY(100%); }
       to { transform: translateY(0); }
     }
-    .modal-title {
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 16px;
-    }
-    .modal-actions {
-      display: flex;
-      gap: 12px;
-      margin-top: 16px;
-    }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+    .modal-actions { display: flex; gap: 12px; margin-top: 16px; }
     .btn-secondary {
-      flex: 1;
-      padding: 12px;
-      border: 1.5px solid var(--gray-300);
-      border-radius: 10px;
-      background: var(--white);
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--gray-700);
-      cursor: pointer;
+      flex: 1; padding: 12px; border: 1.5px solid var(--gray-300);
+      border-radius: 10px; background: var(--white); font-size: 15px;
+      font-weight: 600; color: var(--gray-700); cursor: pointer;
     }
     .btn-primary {
-      flex: 1;
-      padding: 12px;
-      border: none;
-      border-radius: 10px;
-      background: var(--blue-600);
-      font-size: 15px;
-      font-weight: 600;
-      color: white;
-      cursor: pointer;
+      flex: 1; padding: 12px; border: none; border-radius: 10px;
+      background: var(--blue-600); font-size: 15px; font-weight: 600;
+      color: white; cursor: pointer;
     }
   </style>
 </head>
@@ -526,7 +440,6 @@
     <div class="nav-tabs">
       <button class="nav-tab active" data-tab="new" onclick="switchTab('new')">+ New Note</button>
       <button class="nav-tab" data-tab="feed" onclick="switchTab('feed')">Notes Feed</button>
-      <button class="nav-tab" data-tab="contacts" onclick="switchTab('contacts')">Contacts</button>
     </div>
 
     <div class="content">
@@ -539,12 +452,12 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Subject (surgeon, hospital, contact...)</label>
+            <label class="form-label">Surgeon</label>
             <div class="autocomplete-wrapper">
-              <input type="text" id="subjectInput" class="form-input" placeholder="Start typing a name..." autocomplete="off" required>
+              <input type="text" id="subjectInput" class="form-input" placeholder="Start typing a surgeon name..." autocomplete="off" required>
               <div id="autocompleteList" class="autocomplete-list"></div>
             </div>
-            <input type="hidden" id="selectedContactId">
+            <input type="hidden" id="selectedSurgeonId">
           </div>
 
           <div class="form-group">
@@ -579,62 +492,41 @@
         </div>
         <div id="notesFeed"></div>
       </div>
-
-      <!-- CONTACTS SCREEN -->
-      <div id="screen-contacts" class="screen">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <div class="filter-bar" style="margin-bottom:0;">
-            <span class="filter-chip active" data-cfilter="all" onclick="filterContacts('all', this)">All</span>
-            <span class="filter-chip" data-cfilter="surgeon" onclick="filterContacts('surgeon', this)">Surgeons</span>
-            <span class="filter-chip" data-cfilter="hospital" onclick="filterContacts('hospital', this)">Hospitals</span>
-            <span class="filter-chip" data-cfilter="manufacturer" onclick="filterContacts('manufacturer', this)">Manufacturers</span>
-            <span class="filter-chip" data-cfilter="competitor" onclick="filterContacts('competitor', this)">Competitors</span>
-          </div>
-        </div>
-        <button class="btn-submit" style="margin-bottom:16px;" onclick="openAddContact()">+ Add Contact</button>
-        <div id="contactsList"></div>
-      </div>
     </div>
   </div>
 
   <!-- SUCCESS TOAST -->
   <div id="successToast" class="success-toast">Note saved!</div>
 
-  <!-- ADD CONTACT MODAL -->
-  <div id="addContactModal" class="modal-overlay" onclick="closeModal(event)">
+  <!-- ADD SURGEON MODAL -->
+  <div id="addSurgeonModal" class="modal-overlay" onclick="closeModal(event)">
     <div class="modal-sheet" onclick="event.stopPropagation()">
-      <div class="modal-title">Add New Contact</div>
+      <div class="modal-title">Add New Surgeon</div>
       <div class="form-group">
-        <label class="form-label">Name</label>
-        <input type="text" id="newContactName" class="form-input" placeholder="e.g. Dr. Sarah Chen">
+        <label class="form-label">First Name</label>
+        <input type="text" id="newSurgeonFirst" class="form-input" placeholder="e.g. Sarah">
       </div>
       <div class="form-group">
-        <label class="form-label">Type</label>
-        <select id="newContactType" class="form-input">
-          <option value="surgeon">Surgeon</option>
-          <option value="hospital">Hospital</option>
-          <option value="manufacturer">Manufacturer</option>
-          <option value="competitor">Competitor</option>
-          <option value="other">Other</option>
-        </select>
+        <label class="form-label">Last Name</label>
+        <input type="text" id="newSurgeonLast" class="form-input" placeholder="e.g. Chen">
       </div>
       <div class="form-group">
-        <label class="form-label">Facility (optional)</label>
-        <input type="text" id="newContactFacility" class="form-input" placeholder="e.g. Lankenau Medical Center">
+        <label class="form-label">Primary Hospital (optional)</label>
+        <input type="text" id="newSurgeonHospital" class="form-input" placeholder="e.g. Lankenau Medical Center">
       </div>
       <div class="modal-actions">
-        <button class="btn-secondary" onclick="closeAddContact()">Cancel</button>
-        <button class="btn-primary" onclick="saveNewContact()">Save Contact</button>
+        <button class="btn-secondary" onclick="closeAddSurgeon()">Cancel</button>
+        <button class="btn-primary" onclick="saveNewSurgeon()">Save Surgeon</button>
       </div>
     </div>
   </div>
 
 <script>
 // ============================================================
-// CONFIG
+// CONFIG — oso-tray-tracker (the main Agility ops DB)
 // ============================================================
-const SUPABASE_URL = 'https://iwmilzfdrcuixpitrpkh.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3bWlsemZkcmN1aXhwaXRycGtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MjM4NTIsImV4cCI6MjA5MDM5OTg1Mn0.sCYtpWsuP-1Tz5Yd4LlH1Su4Kl72mOW5aAJwcJZtyIY';
+const SUPABASE_URL = 'https://pchhtltxdcmvdcwnwaeg.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjaGh0bHR4ZGNtdmRjd253YWVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MjQzODMsImV4cCI6MjA5MDQwMDM4M30.jeK_Xm2ypDfcp8qJj5Y1l-jZEa4sRTkoDv4AM7g5A2s';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -642,11 +534,11 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // STATE
 // ============================================================
 let currentUser = null;
-let allUsers = [];
-let allContacts = [];
+let allReps = [];
+let allSurgeons = [];
 let allNotes = [];
 let selectedTags = [];
-let selectedContact = null;
+let selectedSurgeon = null;
 let highlightIndex = -1;
 
 // ============================================================
@@ -654,27 +546,23 @@ let highlightIndex = -1;
 // ============================================================
 async function init() {
   try {
-    // Check for saved session
     const savedUserId = window.location.hash?.replace('#', '') || null;
 
-    // Load users
-    const { data: users, error } = await sb.from('app_users').select('*').eq('active', true).order('name');
+    // Load reps (team members)
+    const { data: reps, error } = await sb.from('reps').select('*').eq('active', true).order('sort_order');
     if (error) {
       console.error('Supabase error:', error);
-      document.getElementById('userList').innerHTML = '<p style="color:red;padding:12px;">Error loading users: ' + error.message + '</p>';
+      document.getElementById('userList').innerHTML = '<p style="color:red;padding:12px;">Error loading team: ' + error.message + '</p>';
       return;
     }
-    allUsers = users || [];
+    allReps = reps || [];
 
-  if (savedUserId) {
-    const user = allUsers.find(u => u.id === savedUserId);
-    if (user) {
-      loginAs(user);
-      return;
+    if (savedUserId) {
+      const user = allReps.find(u => String(u.id) === savedUserId);
+      if (user) { loginAs(user); return; }
     }
-  }
 
-  renderLoginScreen();
+    renderLoginScreen();
   } catch (e) {
     console.error('Init error:', e);
     document.getElementById('userList').innerHTML = '<p style="color:red;padding:12px;">Error: ' + e.message + '</p>';
@@ -683,14 +571,20 @@ async function init() {
 
 function renderLoginScreen() {
   const container = document.getElementById('userList');
-  // Group: Owner first, then TMs, then Reps
-  const roleOrder = { owner: 0, tm: 1, rep: 2 };
-  const sorted = [...allUsers].sort((a, b) => (roleOrder[a.role] || 3) - (roleOrder[b.role] || 3) || a.name.localeCompare(b.name));
+  // Group: Owner first, then TMs, then Associate Reps
+  const roleOrder = { 'Owner': 0, 'Territory Manager': 1, 'Associate Rep': 2 };
+  const sorted = [...allReps].sort((a, b) => (roleOrder[a.role] ?? 3) - (roleOrder[b.role] ?? 3) || a.name.localeCompare(b.name));
+
+  const roleLabel = (r) => {
+    if (r === 'Owner') return 'Owner';
+    if (r === 'Territory Manager') return 'TM';
+    return 'S3';
+  };
 
   container.innerHTML = sorted.map(u => `
-    <button class="user-btn" onclick="loginAs(${JSON.stringify(u).replace(/"/g, '&quot;')})">
-      <span>${u.name}</span>
-      <span class="role-label">${u.role === 'owner' ? 'Owner' : u.role === 'tm' ? 'TM' : 'S3'}</span>
+    <button class="user-btn" onclick='loginAs(${JSON.stringify(u).replace(/'/g, "&#39;")})'>
+      <span>${escHtml(u.name)}</span>
+      <span class="role-label">${roleLabel(u.role)}</span>
     </button>
   `).join('');
 }
@@ -700,12 +594,12 @@ function loginAs(user) {
   window.location.hash = user.id;
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appShell').style.display = 'block';
-  document.getElementById('headerUser').textContent = user.name.split(' ')[0] + ' ▾';
+  document.getElementById('headerUser').textContent = user.name.split(' ')[0] + ' \u25BE';
 
   // Set today's date
   document.getElementById('noteDate').value = new Date().toISOString().split('T')[0];
 
-  loadContacts();
+  loadSurgeons();
   loadNotes();
 }
 
@@ -718,71 +612,58 @@ function logout() {
 }
 
 // ============================================================
-// CONTACTS
+// SURGEONS (for autocomplete)
 // ============================================================
-async function loadContacts() {
-  const { data } = await sb.from('contacts').select('*').eq('active', true).order('name');
-  allContacts = data || [];
-  renderContactsList();
-}
-
-function renderContactsList(filterType = 'all') {
-  const container = document.getElementById('contactsList');
-  let filtered = allContacts;
-  if (filterType !== 'all') filtered = filtered.filter(c => c.type === filterType);
-
-  if (filtered.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📇</div><div class="empty-state-text">No contacts yet</div></div>';
-    return;
-  }
-
-  container.innerHTML = filtered.map(c => `
-    <div class="contact-row">
-      <div>
-        <div class="contact-name">${escHtml(c.name)}</div>
-        ${c.facility ? `<div class="contact-facility">${escHtml(c.facility)}</div>` : ''}
-      </div>
-      <span class="type-badge type-${c.type}">${c.type}</span>
-    </div>
-  `).join('');
-}
-
-function filterContacts(type, el) {
-  document.querySelectorAll('[data-cfilter]').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderContactsList(type);
+async function loadSurgeons() {
+  const { data } = await sb.from('surgeons')
+    .select('id, first_name, last_name, credential, primary_hospital, status, specialty, funnel_stage')
+    .order('last_name');
+  allSurgeons = data || [];
 }
 
 // ============================================================
-// AUTOCOMPLETE
+// AUTOCOMPLETE — Surgeon search
 // ============================================================
 const subjectInput = document.getElementById('subjectInput');
 const acList = document.getElementById('autocompleteList');
 
 subjectInput.addEventListener('input', function() {
   const q = this.value.trim().toLowerCase();
-  selectedContact = null;
-  document.getElementById('selectedContactId').value = '';
+  selectedSurgeon = null;
+  document.getElementById('selectedSurgeonId').value = '';
   highlightIndex = -1;
 
-  if (q.length < 1) { acList.classList.remove('open'); return; }
+  if (q.length < 2) { acList.classList.remove('open'); return; }
 
-  const matches = allContacts.filter(c =>
-    c.name.toLowerCase().includes(q) ||
-    (c.facility && c.facility.toLowerCase().includes(q))
-  ).slice(0, 8);
+  const matches = allSurgeons.filter(s => {
+    const full = (s.last_name + ' ' + s.first_name + ' ' + (s.primary_hospital || '')).toLowerCase();
+    return full.includes(q);
+  }).slice(0, 10);
 
-  let html = matches.map((c, i) => `
-    <div class="autocomplete-item" data-index="${i}" onclick="selectContact(${JSON.stringify(c).replace(/"/g, '&quot;')})">
-      <span class="type-badge type-${c.type}">${c.type}</span>
-      <span>${highlightMatch(c.name, q)}${c.facility ? ` <span style="color:var(--gray-500);font-size:13px;">— ${escHtml(c.facility)}</span>` : ''}</span>
-    </div>
-  `).join('');
+  let html = matches.map((s, i) => {
+    const displayName = s.last_name + ', ' + s.first_name + (s.credential ? ', ' + s.credential : '');
+    const isActive = s.status === 'regular_user' || s.funnel_stage === 'active';
+    const badgeClass = isActive ? 'badge-active' : 'badge-prospect';
+    const badgeText = isActive ? 'Active' : (s.funnel_stage || s.status || 'Prospect');
+    return `
+      <div class="autocomplete-item" data-index="${i}" onclick='selectSurgeon(${JSON.stringify(s).replace(/'/g, "&#39;")})'>
+        <div class="ac-name">${highlightMatch(displayName, q)}<span class="ac-badge ${badgeClass}">${escHtml(badgeText)}</span></div>
+        ${s.primary_hospital ? `<div class="ac-detail">${escHtml(s.primary_hospital)}${s.specialty ? ' · ' + escHtml(s.specialty) : ''}</div>` : ''}
+      </div>
+    `;
+  }).join('');
 
-  // Always show "create new" option
+  // "Add new surgeon" option
   html += `
-    <div class="autocomplete-create" onclick="createContactFromInput()">
-      + Add "${escHtml(this.value)}" as new contact
+    <div class="autocomplete-create" onclick="createSurgeonFromInput()">
+      + Add new surgeon
+    </div>
+  `;
+
+  // Freeform fallback
+  html += `
+    <div class="autocomplete-freeform" onclick="useFreeform()">
+      Use "${escHtml(this.value)}" as-is (no surgeon link)
     </div>
   `;
 
@@ -816,23 +697,34 @@ subjectInput.addEventListener('blur', function() {
   setTimeout(() => acList.classList.remove('open'), 200);
 });
 subjectInput.addEventListener('focus', function() {
-  if (this.value.trim().length >= 1) {
-    this.dispatchEvent(new Event('input'));
-  }
+  if (this.value.trim().length >= 2) this.dispatchEvent(new Event('input'));
 });
 
-function selectContact(contact) {
-  selectedContact = contact;
-  document.getElementById('selectedContactId').value = contact.id;
-  subjectInput.value = contact.name;
+function selectSurgeon(surgeon) {
+  selectedSurgeon = surgeon;
+  document.getElementById('selectedSurgeonId').value = surgeon.id;
+  subjectInput.value = surgeon.last_name + ', ' + surgeon.first_name + (surgeon.credential ? ', ' + surgeon.credential : '');
   acList.classList.remove('open');
 }
 
-function createContactFromInput() {
-  const name = subjectInput.value.trim();
-  if (!name) return;
-  document.getElementById('newContactName').value = name;
-  openAddContact();
+function useFreeform() {
+  // Keep the text as-is, no surgeon link
+  selectedSurgeon = null;
+  document.getElementById('selectedSurgeonId').value = '';
+  acList.classList.remove('open');
+}
+
+function createSurgeonFromInput() {
+  // Pre-fill the modal with what the user typed
+  const parts = subjectInput.value.trim().split(/[\s,]+/);
+  if (parts.length >= 2) {
+    document.getElementById('newSurgeonFirst').value = parts[0];
+    document.getElementById('newSurgeonLast').value = parts.slice(1).join(' ');
+  } else {
+    document.getElementById('newSurgeonLast').value = subjectInput.value.trim();
+    document.getElementById('newSurgeonFirst').value = '';
+  }
+  openAddSurgeon();
 }
 
 function highlightMatch(text, query) {
@@ -864,8 +756,8 @@ async function submitNote(e) {
   btn.innerHTML = '<span class="spinner"></span>';
 
   const noteData = {
-    user_id: currentUser.id,
-    contact_id: selectedContact ? selectedContact.id : null,
+    rep_id: currentUser.id,
+    surgeon_id: selectedSurgeon ? selectedSurgeon.id : null,
     subject_text: subjectInput.value.trim(),
     note_body: document.getElementById('noteBody').value.trim(),
     tags: selectedTags,
@@ -891,8 +783,8 @@ async function submitNote(e) {
   document.getElementById('noteForm').reset();
   document.getElementById('noteDate').value = new Date().toISOString().split('T')[0];
   selectedTags = [];
-  selectedContact = null;
-  document.getElementById('selectedContactId').value = '';
+  selectedSurgeon = null;
+  document.getElementById('selectedSurgeonId').value = '';
   document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
 
   // Refresh feed
@@ -903,22 +795,25 @@ async function submitNote(e) {
 // NOTES FEED
 // ============================================================
 async function loadNotes() {
-  // Build query based on role-based visibility
+  // Build query — join to reps (author) and surgeons (subject)
   let query = sb.from('field_notes')
-    .select('*, app_users(name, role), contacts(name, type)')
+    .select('*, reps(name, role, territory_id), surgeons(first_name, last_name, credential, primary_hospital)')
     .order('note_date', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(100);
 
-  if (currentUser.role === 'rep') {
-    // Reps only see their own
-    query = query.eq('user_id', currentUser.id);
-  } else if (currentUser.role === 'tm') {
-    // TMs see their own + their team's
-    const teamIds = allUsers.filter(u => u.team_lead_id === currentUser.id || u.id === currentUser.id).map(u => u.id);
-    query = query.in('user_id', teamIds);
+  // Role-based visibility
+  if (currentUser.role === 'Associate Rep') {
+    // S3s see only their own notes
+    query = query.eq('rep_id', currentUser.id);
+  } else if (currentUser.role === 'Territory Manager') {
+    // TMs see notes from anyone on their territory
+    const teamIds = allReps
+      .filter(r => r.territory_id === currentUser.territory_id)
+      .map(r => r.id);
+    query = query.in('rep_id', teamIds);
   }
-  // Owner sees all — no filter needed
+  // Owner sees all — no filter
 
   const { data } = await query;
   allNotes = data || [];
@@ -938,19 +833,20 @@ function renderNotesFeed(filterTag = 'all') {
   }
 
   container.innerHTML = filtered.map(n => {
-    const authorName = n.app_users?.name || 'Unknown';
-    const contactName = n.contacts?.name || '';
-    const contactType = n.contacts?.type || '';
+    const authorName = n.reps?.name || 'Unknown';
+    const surgeon = n.surgeons;
+    const surgeonDisplay = surgeon ? (surgeon.last_name + ', ' + surgeon.first_name + (surgeon.credential ? ', ' + surgeon.credential : '')) : '';
+    const hospital = surgeon?.primary_hospital || '';
     const dateStr = formatDate(n.note_date);
 
     return `
       <div class="note-card">
         <div class="note-card-header">
-          <div class="note-card-subject">${escHtml(n.subject_text)}</div>
+          <div class="note-card-subject">${escHtml(surgeonDisplay || n.subject_text)}</div>
           <div class="note-card-date">${dateStr}</div>
         </div>
         <div class="note-card-meta">
-          ${authorName}${contactName && contactType ? ` · <span class="type-badge type-${contactType}" style="font-size:10px;">${contactType}</span>` : ''}
+          ${escHtml(authorName)}${hospital ? ' · ' + escHtml(hospital) : ''}
         </div>
         <div class="note-card-body">${escHtml(n.note_body)}</div>
         ${n.tags && n.tags.length ? `
@@ -970,43 +866,44 @@ function filterNotes(tag, el) {
 }
 
 // ============================================================
-// ADD CONTACT MODAL
+// ADD SURGEON MODAL
 // ============================================================
-function openAddContact() {
-  document.getElementById('addContactModal').classList.add('open');
+function openAddSurgeon() {
+  document.getElementById('addSurgeonModal').classList.add('open');
 }
-function closeAddContact() {
-  document.getElementById('addContactModal').classList.remove('open');
-  document.getElementById('newContactName').value = '';
-  document.getElementById('newContactFacility').value = '';
+function closeAddSurgeon() {
+  document.getElementById('addSurgeonModal').classList.remove('open');
+  document.getElementById('newSurgeonFirst').value = '';
+  document.getElementById('newSurgeonLast').value = '';
+  document.getElementById('newSurgeonHospital').value = '';
 }
 function closeModal(e) {
-  if (e.target === e.currentTarget) closeAddContact();
+  if (e.target === e.currentTarget) closeAddSurgeon();
 }
 
-async function saveNewContact() {
-  const name = document.getElementById('newContactName').value.trim();
-  const type = document.getElementById('newContactType').value;
-  const facility = document.getElementById('newContactFacility').value.trim();
+async function saveNewSurgeon() {
+  const first = document.getElementById('newSurgeonFirst').value.trim();
+  const last = document.getElementById('newSurgeonLast').value.trim();
+  const hospital = document.getElementById('newSurgeonHospital').value.trim();
 
-  if (!name) { alert('Please enter a name'); return; }
+  if (!first || !last) { alert('Please enter first and last name'); return; }
 
-  const { data, error } = await sb.from('contacts').insert([{
-    name,
-    type,
-    facility: facility || null,
-    created_by: currentUser.id
+  const { data, error } = await sb.from('surgeons').insert([{
+    first_name: first,
+    last_name: last,
+    primary_hospital: hospital || null,
+    status: 'prospect',
+    funnel_stage: 'prospect'
   }]).select().single();
 
   if (error) { alert('Error: ' + error.message); return; }
 
-  // Add to local list, select it, close modal
-  allContacts.push(data);
-  allContacts.sort((a, b) => a.name.localeCompare(b.name));
+  // Add to local list and select
+  allSurgeons.push(data);
+  allSurgeons.sort((a, b) => a.last_name.localeCompare(b.last_name));
 
-  selectContact(data);
-  closeAddContact();
-  renderContactsList();
+  selectSurgeon(data);
+  closeAddSurgeon();
 }
 
 // ============================================================
@@ -1018,7 +915,6 @@ function switchTab(tab) {
   document.getElementById('screen-' + tab).classList.add('active');
 
   if (tab === 'feed') loadNotes();
-  if (tab === 'contacts') renderContactsList();
 }
 
 // ============================================================
