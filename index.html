@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Field Intel">
+  <meta name="theme-color" content="#1e40af">
+  <title>Field Intel — Agility Ortho</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/supabase/2.39.3/umd/supabase.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue-700: #1d4ed8;
+      --blue-600: #2563eb;
+      --blue-500: #3b82f6;
+      --blue-100: #dbeafe;
+      --blue-50: #eff6ff;
+      --gray-900: #111827;
+      --gray-700: #374151;
+      --gray-500: #6b7280;
+      --gray-300: #d1d5db;
+      --gray-200: #e5e7eb;
+      --gray-100: #f3f4f6;
+      --gray-50: #f9fafb;
+      --white: #ffffff;
+      --green-600: #16a34a;
+      --green-100: #dcfce7;
+      --red-600: #dc2626;
+      --red-100: #fee2e2;
+      --orange-500: #f97316;
+      --orange-100: #ffedd5;
+      --purple-500: #8b5cf6;
+      --purple-100: #ede9fe;
+      --teal-500: #14b8a6;
+      --teal-100: #ccfbf1;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--blue-700), var(--blue-600));
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .header-sub {
+      font-size: 11px;
+      opacity: 0.85;
+      font-weight: 400;
+    }
+    .header-user {
+      font-size: 13px;
+      background: rgba(255,255,255,0.2);
+      padding: 6px 12px;
+      border-radius: 20px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .header-user:hover { background: rgba(255,255,255,0.3); }
+
+    /* Navigation */
+    .nav-tabs {
+      display: flex;
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-200);
+      position: sticky;
+      top: 58px;
+      z-index: 99;
+    }
+    .nav-tab {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gray-500);
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+    .nav-tab.active {
+      color: var(--blue-600);
+      border-bottom-color: var(--blue-600);
+    }
+
+    /* Main content */
+    .content { padding: 16px; max-width: 600px; margin: 0 auto; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* Form elements */
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin-bottom: 6px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: 10px;
+      font-size: 16px;
+      background: var(--white);
+      color: var(--gray-900);
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--blue-500);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+    }
+    textarea.form-input {
+      min-height: 140px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    /* Autocomplete */
+    .autocomplete-wrapper { position: relative; }
+    .autocomplete-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--white);
+      border: 1.5px solid var(--gray-300);
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+      max-height: 220px;
+      overflow-y: auto;
+      z-index: 50;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      display: none;
+    }
+    .autocomplete-list.open { display: block; }
+    .autocomplete-item {
+      padding: 12px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--gray-100);
+      font-size: 15px;
+    }
+    .autocomplete-item:last-child { border-bottom: none; }
+    .autocomplete-item:hover, .autocomplete-item.highlighted {
+      background: var(--blue-50);
+    }
+    .autocomplete-item .type-badge {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .type-surgeon { background: var(--blue-100); color: var(--blue-700); }
+    .type-hospital { background: var(--green-100); color: var(--green-600); }
+    .type-manufacturer { background: var(--purple-100); color: var(--purple-500); }
+    .type-competitor { background: var(--orange-100); color: var(--orange-500); }
+    .type-other { background: var(--gray-200); color: var(--gray-700); }
+    .autocomplete-create {
+      padding: 12px 14px;
+      cursor: pointer;
+      color: var(--blue-600);
+      font-weight: 600;
+      font-size: 14px;
+      border-top: 1px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .autocomplete-create:hover { background: var(--blue-50); }
+
+    /* Tags */
+    .tags-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tag-chip {
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 2px solid var(--gray-300);
+      background: var(--white);
+      color: var(--gray-700);
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tag-chip.selected {
+      border-color: var(--blue-600);
+      background: var(--blue-100);
+      color: var(--blue-700);
+    }
+
+    /* Submit button */
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: var(--blue-600);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 8px;
+    }
+    .btn-submit:hover { background: var(--blue-700); }
+    .btn-submit:disabled {
+      background: var(--gray-300);
+      cursor: not-allowed;
+    }
+
+    /* Success message */
+    .success-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--green-600);
+      color: white;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 15px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      transition: transform 0.3s ease;
+      z-index: 200;
+    }
+    .success-toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Notes feed */
+    .note-card {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      border: 1px solid var(--gray-200);
+    }
+    .note-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    .note-card-subject {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--gray-900);
+    }
+    .note-card-date {
+      font-size: 12px;
+      color: var(--gray-500);
+      white-space: nowrap;
+    }
+    .note-card-meta {
+      font-size: 12px;
+      color: var(--gray-500);
+      margin-bottom: 8px;
+    }
+    .note-card-body {
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--gray-700);
+      white-space: pre-wrap;
+    }
+    .note-card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .note-tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 12px;
+      background: var(--blue-100);
+      color: var(--blue-700);
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--gray-500);
+    }
+    .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state-text { font-size: 15px; }
+
+    /* Login screen */
+    .login-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      background: linear-gradient(180deg, var(--blue-50) 0%, var(--white) 50%);
+    }
+    .login-logo {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--blue-700);
+      margin-bottom: 4px;
+    }
+    .login-sub {
+      font-size: 14px;
+      color: var(--gray-500);
+      margin-bottom: 32px;
+    }
+    .login-card {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .login-card h2 {
+      font-size: 16px;
+      margin-bottom: 16px;
+      color: var(--gray-700);
+    }
+    .user-btn {
+      width: 100%;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      background: var(--gray-50);
+      border: 1.5px solid var(--gray-200);
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--gray-900);
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .user-btn:hover {
+      border-color: var(--blue-500);
+      background: var(--blue-50);
+    }
+    .user-btn .role-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--gray-500);
+    }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .filter-chip {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1.5px solid var(--gray-300);
+      background: var(--white);
+      color: var(--gray-700);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .filter-chip.active {
+      border-color: var(--blue-600);
+      background: var(--blue-600);
+      color: white;
+    }
+
+    /* Contacts screen */
+    .contact-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .contact-row:first-child { border-radius: 12px 12px 0 0; }
+    .contact-row:last-child { border-radius: 0 0 12px 12px; border-bottom: none; }
+    .contact-name { font-weight: 600; font-size: 14px; }
+    .contact-facility { font-size: 12px; color: var(--gray-500); }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Add contact modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 300;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-sheet {
+      background: var(--white);
+      border-radius: 16px 16px 0 0;
+      padding: 24px;
+      width: 100%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .btn-secondary {
+      flex: 1;
+      padding: 12px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: 10px;
+      background: var(--white);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--gray-700);
+      cursor: pointer;
+    }
+    .btn-primary {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: var(--blue-600);
+      font-size: 15px;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-logo">Field Intel</div>
+    <div class="login-sub">Agility Ortho</div>
+    <div class="login-card">
+      <h2>Who are you?</h2>
+      <div id="userList"></div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="appShell" style="display:none;">
+    <div class="header">
+      <div>
+        <h1>Field Intel</h1>
+        <div class="header-sub">Agility Ortho</div>
+      </div>
+      <div class="header-user" id="headerUser" onclick="logout()"></div>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-tab="new" onclick="switchTab('new')">+ New Note</button>
+      <button class="nav-tab" data-tab="feed" onclick="switchTab('feed')">Notes Feed</button>
+      <button class="nav-tab" data-tab="contacts" onclick="switchTab('contacts')">Contacts</button>
+    </div>
+
+    <div class="content">
+      <!-- NEW NOTE SCREEN -->
+      <div id="screen-new" class="screen active">
+        <form id="noteForm" onsubmit="submitNote(event)">
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input type="date" id="noteDate" class="form-input" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Subject (surgeon, hospital, contact...)</label>
+            <div class="autocomplete-wrapper">
+              <input type="text" id="subjectInput" class="form-input" placeholder="Start typing a name..." autocomplete="off" required>
+              <div id="autocompleteList" class="autocomplete-list"></div>
+            </div>
+            <input type="hidden" id="selectedContactId">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Tags (optional)</label>
+            <div class="tags-row">
+              <span class="tag-chip" data-tag="Surgeon Visit" onclick="toggleTag(this)">Surgeon Visit</span>
+              <span class="tag-chip" data-tag="Case Feedback" onclick="toggleTag(this)">Case Feedback</span>
+              <span class="tag-chip" data-tag="Competitive Intel" onclick="toggleTag(this)">Competitive Intel</span>
+              <span class="tag-chip" data-tag="Product Interest" onclick="toggleTag(this)">Product Interest</span>
+              <span class="tag-chip" data-tag="Issue / Complaint" onclick="toggleTag(this)">Issue / Complaint</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Notes</label>
+            <textarea id="noteBody" class="form-input" placeholder="What happened? Be as detailed or brief as you want — names, products, competitors, next steps..." required></textarea>
+          </div>
+
+          <button type="submit" class="btn-submit" id="submitBtn">Submit Note</button>
+        </form>
+      </div>
+
+      <!-- NOTES FEED SCREEN -->
+      <div id="screen-feed" class="screen">
+        <div class="filter-bar">
+          <span class="filter-chip active" data-filter="all" onclick="filterNotes('all', this)">All</span>
+          <span class="filter-chip" data-filter="Surgeon Visit" onclick="filterNotes('Surgeon Visit', this)">Surgeon Visit</span>
+          <span class="filter-chip" data-filter="Case Feedback" onclick="filterNotes('Case Feedback', this)">Case Feedback</span>
+          <span class="filter-chip" data-filter="Competitive Intel" onclick="filterNotes('Competitive Intel', this)">Competitive Intel</span>
+          <span class="filter-chip" data-filter="Product Interest" onclick="filterNotes('Product Interest', this)">Product Interest</span>
+          <span class="filter-chip" data-filter="Issue / Complaint" onclick="filterNotes('Issue / Complaint', this)">Issue / Complaint</span>
+        </div>
+        <div id="notesFeed"></div>
+      </div>
+
+      <!-- CONTACTS SCREEN -->
+      <div id="screen-contacts" class="screen">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div class="filter-bar" style="margin-bottom:0;">
+            <span class="filter-chip active" data-cfilter="all" onclick="filterContacts('all', this)">All</span>
+            <span class="filter-chip" data-cfilter="surgeon" onclick="filterContacts('surgeon', this)">Surgeons</span>
+            <span class="filter-chip" data-cfilter="hospital" onclick="filterContacts('hospital', this)">Hospitals</span>
+            <span class="filter-chip" data-cfilter="manufacturer" onclick="filterContacts('manufacturer', this)">Manufacturers</span>
+            <span class="filter-chip" data-cfilter="competitor" onclick="filterContacts('competitor', this)">Competitors</span>
+          </div>
+        </div>
+        <button class="btn-submit" style="margin-bottom:16px;" onclick="openAddContact()">+ Add Contact</button>
+        <div id="contactsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUCCESS TOAST -->
+  <div id="successToast" class="success-toast">Note saved!</div>
+
+  <!-- ADD CONTACT MODAL -->
+  <div id="addContactModal" class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-title">Add New Contact</div>
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input type="text" id="newContactName" class="form-input" placeholder="e.g. Dr. Sarah Chen">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select id="newContactType" class="form-input">
+          <option value="surgeon">Surgeon</option>
+          <option value="hospital">Hospital</option>
+          <option value="manufacturer">Manufacturer</option>
+          <option value="competitor">Competitor</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Facility (optional)</label>
+        <input type="text" id="newContactFacility" class="form-input" placeholder="e.g. Lankenau Medical Center">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeAddContact()">Cancel</button>
+        <button class="btn-primary" onclick="saveNewContact()">Save Contact</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const SUPABASE_URL = 'https://iwmilzfdrcuixpitrpkh.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3bWlsemZkcmN1aXhwaXRycGtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MjM4NTIsImV4cCI6MjA5MDM5OTg1Mn0.sCYtpWsuP-1Tz5Yd4LlH1Su4Kl72mOW5aAJwcJZtyIY';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ============================================================
+// STATE
+// ============================================================
+let currentUser = null;
+let allUsers = [];
+let allContacts = [];
+let allNotes = [];
+let selectedTags = [];
+let selectedContact = null;
+let highlightIndex = -1;
+
+// ============================================================
+// INIT
+// ============================================================
+async function init() {
+  // Check for saved session
+  const savedUserId = window.location.hash?.replace('#', '') || null;
+
+  // Load users
+  const { data: users } = await sb.from('app_users').select('*').eq('active', true).order('name');
+  allUsers = users || [];
+
+  if (savedUserId) {
+    const user = allUsers.find(u => u.id === savedUserId);
+    if (user) {
+      loginAs(user);
+      return;
+    }
+  }
+
+  renderLoginScreen();
+}
+
+function renderLoginScreen() {
+  const container = document.getElementById('userList');
+  // Group: Owner first, then TMs, then Reps
+  const roleOrder = { owner: 0, tm: 1, rep: 2 };
+  const sorted = [...allUsers].sort((a, b) => (roleOrder[a.role] || 3) - (roleOrder[b.role] || 3) || a.name.localeCompare(b.name));
+
+  container.innerHTML = sorted.map(u => `
+    <button class="user-btn" onclick="loginAs(${JSON.stringify(u).replace(/"/g, '&quot;')})">
+      <span>${u.name}</span>
+      <span class="role-label">${u.role === 'owner' ? 'Owner' : u.role === 'tm' ? 'TM' : 'S3'}</span>
+    </button>
+  `).join('');
+}
+
+function loginAs(user) {
+  currentUser = user;
+  window.location.hash = user.id;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'block';
+  document.getElementById('headerUser').textContent = user.name.split(' ')[0] + ' ▾';
+
+  // Set today's date
+  document.getElementById('noteDate').value = new Date().toISOString().split('T')[0];
+
+  loadContacts();
+  loadNotes();
+}
+
+function logout() {
+  currentUser = null;
+  window.location.hash = '';
+  document.getElementById('loginScreen').style.display = '';
+  document.getElementById('appShell').style.display = 'none';
+  renderLoginScreen();
+}
+
+// ============================================================
+// CONTACTS
+// ============================================================
+async function loadContacts() {
+  const { data } = await sb.from('contacts').select('*').eq('active', true).order('name');
+  allContacts = data || [];
+  renderContactsList();
+}
+
+function renderContactsList(filterType = 'all') {
+  const container = document.getElementById('contactsList');
+  let filtered = allContacts;
+  if (filterType !== 'all') filtered = filtered.filter(c => c.type === filterType);
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📇</div><div class="empty-state-text">No contacts yet</div></div>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(c => `
+    <div class="contact-row">
+      <div>
+        <div class="contact-name">${escHtml(c.name)}</div>
+        ${c.facility ? `<div class="contact-facility">${escHtml(c.facility)}</div>` : ''}
+      </div>
+      <span class="type-badge type-${c.type}">${c.type}</span>
+    </div>
+  `).join('');
+}
+
+function filterContacts(type, el) {
+  document.querySelectorAll('[data-cfilter]').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderContactsList(type);
+}
+
+// ============================================================
+// AUTOCOMPLETE
+// ============================================================
+const subjectInput = document.getElementById('subjectInput');
+const acList = document.getElementById('autocompleteList');
+
+subjectInput.addEventListener('input', function() {
+  const q = this.value.trim().toLowerCase();
+  selectedContact = null;
+  document.getElementById('selectedContactId').value = '';
+  highlightIndex = -1;
+
+  if (q.length < 1) { acList.classList.remove('open'); return; }
+
+  const matches = allContacts.filter(c =>
+    c.name.toLowerCase().includes(q) ||
+    (c.facility && c.facility.toLowerCase().includes(q))
+  ).slice(0, 8);
+
+  let html = matches.map((c, i) => `
+    <div class="autocomplete-item" data-index="${i}" onclick="selectContact(${JSON.stringify(c).replace(/"/g, '&quot;')})">
+      <span class="type-badge type-${c.type}">${c.type}</span>
+      <span>${highlightMatch(c.name, q)}${c.facility ? ` <span style="color:var(--gray-500);font-size:13px;">— ${escHtml(c.facility)}</span>` : ''}</span>
+    </div>
+  `).join('');
+
+  // Always show "create new" option
+  html += `
+    <div class="autocomplete-create" onclick="createContactFromInput()">
+      + Add "${escHtml(this.value)}" as new contact
+    </div>
+  `;
+
+  acList.innerHTML = html;
+  acList.classList.add('open');
+});
+
+subjectInput.addEventListener('keydown', function(e) {
+  const items = acList.querySelectorAll('.autocomplete-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    highlightIndex = Math.min(highlightIndex + 1, items.length - 1);
+    updateHighlight(items);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    highlightIndex = Math.max(highlightIndex - 1, 0);
+    updateHighlight(items);
+  } else if (e.key === 'Enter' && highlightIndex >= 0 && items[highlightIndex]) {
+    e.preventDefault();
+    items[highlightIndex].click();
+  } else if (e.key === 'Escape') {
+    acList.classList.remove('open');
+  }
+});
+
+function updateHighlight(items) {
+  items.forEach((item, i) => item.classList.toggle('highlighted', i === highlightIndex));
+}
+
+subjectInput.addEventListener('blur', function() {
+  setTimeout(() => acList.classList.remove('open'), 200);
+});
+subjectInput.addEventListener('focus', function() {
+  if (this.value.trim().length >= 1) {
+    this.dispatchEvent(new Event('input'));
+  }
+});
+
+function selectContact(contact) {
+  selectedContact = contact;
+  document.getElementById('selectedContactId').value = contact.id;
+  subjectInput.value = contact.name;
+  acList.classList.remove('open');
+}
+
+function createContactFromInput() {
+  const name = subjectInput.value.trim();
+  if (!name) return;
+  document.getElementById('newContactName').value = name;
+  openAddContact();
+}
+
+function highlightMatch(text, query) {
+  const idx = text.toLowerCase().indexOf(query);
+  if (idx === -1) return escHtml(text);
+  return escHtml(text.slice(0, idx)) + '<strong>' + escHtml(text.slice(idx, idx + query.length)) + '</strong>' + escHtml(text.slice(idx + query.length));
+}
+
+// ============================================================
+// TAGS
+// ============================================================
+function toggleTag(el) {
+  el.classList.toggle('selected');
+  const tag = el.dataset.tag;
+  if (selectedTags.includes(tag)) {
+    selectedTags = selectedTags.filter(t => t !== tag);
+  } else {
+    selectedTags.push(tag);
+  }
+}
+
+// ============================================================
+// SUBMIT NOTE
+// ============================================================
+async function submitNote(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  const noteData = {
+    user_id: currentUser.id,
+    contact_id: selectedContact ? selectedContact.id : null,
+    subject_text: subjectInput.value.trim(),
+    note_body: document.getElementById('noteBody').value.trim(),
+    tags: selectedTags,
+    note_date: document.getElementById('noteDate').value
+  };
+
+  const { error } = await sb.from('field_notes').insert([noteData]);
+
+  btn.disabled = false;
+  btn.textContent = 'Submit Note';
+
+  if (error) {
+    alert('Error saving note: ' + error.message);
+    return;
+  }
+
+  // Show success
+  const toast = document.getElementById('successToast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+
+  // Reset form
+  document.getElementById('noteForm').reset();
+  document.getElementById('noteDate').value = new Date().toISOString().split('T')[0];
+  selectedTags = [];
+  selectedContact = null;
+  document.getElementById('selectedContactId').value = '';
+  document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
+
+  // Refresh feed
+  loadNotes();
+}
+
+// ============================================================
+// NOTES FEED
+// ============================================================
+async function loadNotes() {
+  // Build query based on role-based visibility
+  let query = sb.from('field_notes')
+    .select('*, app_users(name, role), contacts(name, type)')
+    .order('note_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (currentUser.role === 'rep') {
+    // Reps only see their own
+    query = query.eq('user_id', currentUser.id);
+  } else if (currentUser.role === 'tm') {
+    // TMs see their own + their team's
+    const teamIds = allUsers.filter(u => u.team_lead_id === currentUser.id || u.id === currentUser.id).map(u => u.id);
+    query = query.in('user_id', teamIds);
+  }
+  // Owner sees all — no filter needed
+
+  const { data } = await query;
+  allNotes = data || [];
+  renderNotesFeed();
+}
+
+function renderNotesFeed(filterTag = 'all') {
+  const container = document.getElementById('notesFeed');
+  let filtered = allNotes;
+  if (filterTag !== 'all') {
+    filtered = filtered.filter(n => n.tags && n.tags.includes(filterTag));
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📝</div><div class="empty-state-text">No notes yet. Go add some field intel!</div></div>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(n => {
+    const authorName = n.app_users?.name || 'Unknown';
+    const contactName = n.contacts?.name || '';
+    const contactType = n.contacts?.type || '';
+    const dateStr = formatDate(n.note_date);
+
+    return `
+      <div class="note-card">
+        <div class="note-card-header">
+          <div class="note-card-subject">${escHtml(n.subject_text)}</div>
+          <div class="note-card-date">${dateStr}</div>
+        </div>
+        <div class="note-card-meta">
+          ${authorName}${contactName && contactType ? ` · <span class="type-badge type-${contactType}" style="font-size:10px;">${contactType}</span>` : ''}
+        </div>
+        <div class="note-card-body">${escHtml(n.note_body)}</div>
+        ${n.tags && n.tags.length ? `
+          <div class="note-card-tags">
+            ${n.tags.map(t => `<span class="note-tag">${escHtml(t)}</span>`).join('')}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function filterNotes(tag, el) {
+  document.querySelectorAll('[data-filter]').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderNotesFeed(tag);
+}
+
+// ============================================================
+// ADD CONTACT MODAL
+// ============================================================
+function openAddContact() {
+  document.getElementById('addContactModal').classList.add('open');
+}
+function closeAddContact() {
+  document.getElementById('addContactModal').classList.remove('open');
+  document.getElementById('newContactName').value = '';
+  document.getElementById('newContactFacility').value = '';
+}
+function closeModal(e) {
+  if (e.target === e.currentTarget) closeAddContact();
+}
+
+async function saveNewContact() {
+  const name = document.getElementById('newContactName').value.trim();
+  const type = document.getElementById('newContactType').value;
+  const facility = document.getElementById('newContactFacility').value.trim();
+
+  if (!name) { alert('Please enter a name'); return; }
+
+  const { data, error } = await sb.from('contacts').insert([{
+    name,
+    type,
+    facility: facility || null,
+    created_by: currentUser.id
+  }]).select().single();
+
+  if (error) { alert('Error: ' + error.message); return; }
+
+  // Add to local list, select it, close modal
+  allContacts.push(data);
+  allContacts.sort((a, b) => a.name.localeCompare(b.name));
+
+  selectContact(data);
+  closeAddContact();
+  renderContactsList();
+}
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + tab).classList.add('active');
+
+  if (tab === 'feed') loadNotes();
+  if (tab === 'contacts') renderContactsList();
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const diff = Math.floor((today - d) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  if (diff < 7) return d.toLocaleDateString('en-US', { weekday: 'long' });
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ============================================================
+// SERVICE WORKER
+// ============================================================
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+init();
+</script>
+
+</body>
+</html>
