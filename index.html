@@ -554,10 +554,11 @@
       align-items: center;
       justify-content: center;
       z-index: 9999;
-      transition: opacity 0.5s ease;
+      transition: transform 0.4s ease;
+      touch-action: none;
     }
-    .splash-screen.fade-out {
-      opacity: 0;
+    .splash-screen.dismissed {
+      transform: translateY(-100%);
       pointer-events: none;
     }
     .splash-icon {
@@ -566,11 +567,6 @@
       border-radius: 22px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.25);
       margin-bottom: 20px;
-      animation: splashPulse 1.2s ease-in-out infinite alternate;
-    }
-    @keyframes splashPulse {
-      from { transform: scale(1); }
-      to { transform: scale(1.04); }
     }
     .splash-title {
       font-size: 28px;
@@ -584,14 +580,39 @@
       margin-top: 4px;
       font-weight: 500;
     }
-    .splash-loader {
-      margin-top: 32px;
-      width: 36px;
-      height: 36px;
-      border: 3px solid rgba(255,255,255,0.25);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
+    .splash-headline {
+      max-width: 300px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.4;
+      color: rgba(255,255,255,0.9);
+      margin-top: 28px;
+    }
+    .splash-blurb {
+      max-width: 300px;
+      text-align: center;
+      font-size: 13px;
+      font-style: italic;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.6);
+      margin-top: 10px;
+    }
+    .splash-arrow {
+      position: absolute;
+      bottom: 36px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      animation: arrowBounce 2s ease-in-out infinite;
+    }
+    .splash-arrow svg {
+      opacity: 0.4;
+    }
+    @keyframes arrowBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
     }
   </style>
 </head>
@@ -602,7 +623,11 @@
     <img src="icon-192.png" alt="Field Intel" class="splash-icon">
     <div class="splash-title">Field Intel</div>
     <div class="splash-subtitle">Agility Ortho</div>
-    <div class="splash-loader"></div>
+    <div class="splash-headline">Better intel in, better outcomes out.</div>
+    <div class="splash-blurb">Every field note you enter makes our entire team smarter — the more we know about our surgeons, facilities, and competitors, the more prepared, relevant, and valuable we are to our customers.</div>
+    <div class="splash-arrow">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+    </div>
   </div>
 
   <!-- LOGIN SCREEN -->
@@ -779,11 +804,47 @@ let highlightIndex = -1;
 // ============================================================
 // AUTH — Supabase Email OTP
 // ============================================================
-function dismissSplash() {
+// Splash screen — swipe up to dismiss
+let splashReady = false;
+(function initSplashGesture() {
   const splash = document.getElementById('splashScreen');
   if (!splash) return;
-  splash.classList.add('fade-out');
-  setTimeout(() => splash.remove(), 600);
+  let startY = 0;
+
+  splash.addEventListener('touchstart', (e) => {
+    if (!splashReady) return;
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+
+  splash.addEventListener('touchmove', (e) => {
+    if (!splashReady) return;
+    const dy = startY - e.touches[0].clientY;
+    if (dy > 0) {
+      splash.style.transform = `translateY(${-dy}px)`;
+    }
+  }, { passive: true });
+
+  splash.addEventListener('touchend', (e) => {
+    if (!splashReady) return;
+    const dy = startY - e.changedTouches[0].clientY;
+    if (dy > 60) {
+      splash.classList.add('dismissed');
+      setTimeout(() => splash.remove(), 500);
+    } else {
+      splash.style.transform = '';
+    }
+  });
+
+  // Also allow tap to dismiss
+  splash.addEventListener('click', () => {
+    if (!splashReady) return;
+    splash.classList.add('dismissed');
+    setTimeout(() => splash.remove(), 500);
+  });
+})();
+
+function splashIsReady() {
+  splashReady = true;
 }
 
 async function init() {
@@ -795,11 +856,11 @@ async function init() {
   if (session) {
     authUser = session.user;
     await loadRepsAndLogin();
-    dismissSplash();
+    splashIsReady();
   } else {
     showLoading(false);
     showStep1();
-    dismissSplash();
+    splashIsReady();
   }
 
   // Listen for auth state changes
