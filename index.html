@@ -286,6 +286,18 @@
       background: var(--blue-100);
       color: var(--blue-700);
     }
+    .note-card-photo {
+      margin-top: 10px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .note-card-photo img {
+      width: 100%;
+      max-height: 300px;
+      object-fit: cover;
+      border-radius: 8px;
+      cursor: pointer;
+    }
 
     /* Empty state */
     .empty-state { text-align: center; padding: 48px 24px; color: var(--gray-500); }
@@ -313,29 +325,25 @@
       box-shadow: 0 4px 24px rgba(0,0,0,0.08);
     }
     .login-card h2 { font-size: 16px; margin-bottom: 16px; color: var(--gray-700); }
-    .user-btn {
-      width: 100%;
-      padding: 14px 16px;
-      margin-bottom: 8px;
-      background: var(--gray-50);
-      border: 1.5px solid var(--gray-200);
-      border-radius: 10px;
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--gray-900);
-      cursor: pointer;
-      text-align: left;
-      transition: all 0.15s;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .user-btn:hover { border-color: var(--blue-500); background: var(--blue-50); }
-    .user-btn .role-label {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
+    .login-hint {
+      font-size: 13px;
       color: var(--gray-500);
+      margin-top: 12px;
+      text-align: center;
+    }
+    .login-error {
+      font-size: 13px;
+      color: var(--red-600);
+      margin-top: 8px;
+      text-align: center;
+    }
+    .login-back {
+      font-size: 13px;
+      color: var(--blue-600);
+      cursor: pointer;
+      text-align: center;
+      margin-top: 12px;
+      font-weight: 600;
     }
 
     /* Filter bar */
@@ -362,6 +370,42 @@
       border-color: var(--blue-600);
       background: var(--blue-600);
       color: white;
+    }
+
+    /* Photo upload */
+    .photo-upload-area {
+      border: 2px dashed var(--gray-300);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--white);
+    }
+    .photo-upload-area:hover {
+      border-color: var(--blue-500);
+      background: var(--blue-50);
+    }
+    .photo-upload-area.has-photo {
+      border-style: solid;
+      border-color: var(--green-600);
+      padding: 8px;
+    }
+    .photo-upload-icon { font-size: 28px; margin-bottom: 4px; }
+    .photo-upload-text { font-size: 13px; color: var(--gray-500); }
+    .photo-preview {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+    .photo-remove {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--red-600);
+      cursor: pointer;
+      font-weight: 600;
     }
 
     /* Spinner */
@@ -413,6 +457,24 @@
       background: var(--blue-600); font-size: 15px; font-weight: 600;
       color: white; cursor: pointer;
     }
+
+    /* Full-screen photo viewer */
+    .photo-viewer {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 400;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .photo-viewer.open { display: flex; }
+    .photo-viewer img {
+      max-width: 95%;
+      max-height: 95%;
+      object-fit: contain;
+    }
   </style>
 </head>
 <body>
@@ -422,8 +484,27 @@
     <div class="login-logo">Field Intel</div>
     <div class="login-sub">Agility Ortho</div>
     <div class="login-card">
-      <h2>Who are you?</h2>
-      <div id="userList"></div>
+      <!-- Step 1: Email -->
+      <div id="loginStep1">
+        <h2>Sign in with your email</h2>
+        <input type="email" id="loginEmail" class="form-input" placeholder="you@agilityortho.com" autocomplete="email" autofocus>
+        <button class="btn-submit" style="margin-top:12px;" onclick="sendOTP()">Send Code</button>
+        <div id="loginError1" class="login-error" style="display:none;"></div>
+      </div>
+      <!-- Step 2: OTP Code -->
+      <div id="loginStep2" style="display:none;">
+        <h2>Enter the 8-digit code</h2>
+        <div class="login-hint" id="loginEmailHint"></div>
+        <input type="text" id="loginCode" class="form-input" placeholder="12345678" maxlength="8" inputmode="numeric" autocomplete="one-time-code" style="text-align:center;font-size:24px;letter-spacing:4px;margin-top:12px;">
+        <button class="btn-submit" style="margin-top:12px;" onclick="verifyOTP()">Verify</button>
+        <div id="loginError2" class="login-error" style="display:none;"></div>
+        <div class="login-back" onclick="showStep1()">Use a different email</div>
+      </div>
+      <!-- Loading state -->
+      <div id="loginLoading" style="display:none;text-align:center;padding:24px;">
+        <div class="spinner" style="border-color:var(--gray-300);border-top-color:var(--blue-600);width:28px;height:28px;"></div>
+        <div style="margin-top:12px;font-size:14px;color:var(--gray-500);">Signing in...</div>
+      </div>
     </div>
   </div>
 
@@ -478,7 +559,22 @@
 
           <div class="form-group">
             <label class="form-label">Next Action (optional)</label>
-            <input type="text" id="nextAction" class="form-input" placeholder="e.g. Send brochure, Schedule lunch, Follow up after Thursday case...">
+            <textarea id="nextAction" class="form-input" rows="2" style="min-height:auto;resize:none;" placeholder="Setup lunch, email video link, invite to lab, schedule next touch, send samples, follow up after Thursday case..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Photo (optional)</label>
+            <div class="photo-upload-area" id="photoUploadArea" onclick="document.getElementById('photoInput').click()">
+              <div id="photoPlaceholder">
+                <div class="photo-upload-icon">📷</div>
+                <div class="photo-upload-text">Tap to take a photo or choose from gallery</div>
+              </div>
+              <div id="photoPreviewWrap" style="display:none;">
+                <img id="photoPreview" class="photo-preview">
+                <div class="photo-remove" onclick="removePhoto(event)">Remove photo</div>
+              </div>
+            </div>
+            <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoSelect(this)">
           </div>
 
           <button type="submit" class="btn-submit" id="submitBtn">Submit Note</button>
@@ -526,6 +622,11 @@
     </div>
   </div>
 
+  <!-- FULL-SCREEN PHOTO VIEWER -->
+  <div id="photoViewer" class="photo-viewer" onclick="this.classList.remove('open')">
+    <img id="photoViewerImg" src="">
+  </div>
+
 <script>
 // ============================================================
 // CONFIG — oso-tray-tracker (the main Agility ops DB)
@@ -538,82 +639,161 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ============================================================
 // STATE
 // ============================================================
-let currentUser = null;
+let currentUser = null;   // rep record from reps table
+let authUser = null;      // Supabase Auth user
 let allReps = [];
 let allSurgeons = [];
 let allNotes = [];
 let selectedTags = [];
 let selectedSurgeon = null;
+let selectedPhoto = null; // File object
 let highlightIndex = -1;
 
 // ============================================================
-// INIT
+// AUTH — Supabase Email OTP
 // ============================================================
 async function init() {
-  try {
-    const savedUserId = window.location.hash?.replace('#', '') || null;
+  showLoading(true);
 
-    // Load reps (team members)
-    const { data: reps, error } = await sb.from('reps').select('*').eq('active', true).order('sort_order');
-    if (error) {
-      console.error('Supabase error:', error);
-      document.getElementById('userList').innerHTML = '<p style="color:red;padding:12px;">Error loading team: ' + error.message + '</p>';
-      return;
-    }
-    allReps = reps || [];
+  // Check for existing session
+  const { data: { session } } = await sb.auth.getSession();
 
-    if (savedUserId) {
-      const user = allReps.find(u => String(u.id) === savedUserId);
-      if (user) { loginAs(user); return; }
-    }
-
-    renderLoginScreen();
-  } catch (e) {
-    console.error('Init error:', e);
-    document.getElementById('userList').innerHTML = '<p style="color:red;padding:12px;">Error: ' + e.message + '</p>';
+  if (session) {
+    authUser = session.user;
+    await loadRepsAndLogin();
+  } else {
+    showLoading(false);
+    showStep1();
   }
+
+  // Listen for auth state changes
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session && !currentUser) {
+      authUser = session.user;
+      await loadRepsAndLogin();
+    }
+  });
 }
 
-function renderLoginScreen() {
-  const container = document.getElementById('userList');
-  // Group: Owner first, then TMs, then Associate Reps
-  const roleOrder = { 'Owner': 0, 'Territory Manager': 1, 'Associate Rep': 2 };
-  const sorted = [...allReps].sort((a, b) => (roleOrder[a.role] ?? 3) - (roleOrder[b.role] ?? 3) || a.name.localeCompare(b.name));
+async function loadRepsAndLogin() {
+  const { data: reps, error } = await sb.from('reps').select('*').eq('active', true).order('sort_order');
+  if (error) {
+    showLoading(false);
+    showLoginError(1, 'Error loading team: ' + error.message);
+    return;
+  }
+  allReps = reps || [];
 
-  const roleLabel = (r) => {
-    if (r === 'Owner') return 'Owner';
-    if (r === 'Territory Manager') return 'TM';
-    return 'S3';
-  };
+  // Match auth user email to rep
+  const rep = allReps.find(r => r.email && r.email.toLowerCase() === authUser.email.toLowerCase());
+  if (!rep) {
+    showLoading(false);
+    showLoginError(1, 'No team member found for ' + authUser.email + '. Contact John.');
+    await sb.auth.signOut();
+    return;
+  }
 
-  container.innerHTML = sorted.map(u => `
-    <button class="user-btn" onclick='loginAs(${JSON.stringify(u).replace(/'/g, "&#39;")})'>
-      <span>${escHtml(u.name)}</span>
-      <span class="role-label">${roleLabel(u.role)}</span>
-    </button>
-  `).join('');
-}
-
-function loginAs(user) {
-  currentUser = user;
-  window.location.hash = user.id;
+  currentUser = rep;
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appShell').style.display = 'block';
-  document.getElementById('headerUser').textContent = user.name.split(' ')[0] + ' \u25BE';
-
-  // Set today's date
+  document.getElementById('headerUser').textContent = rep.name.split(' ')[0] + ' \u25BE';
   document.getElementById('noteDate').value = new Date().toISOString().split('T')[0];
 
   loadSurgeons();
   loadNotes();
 }
 
-function logout() {
+function showLoading(show) {
+  document.getElementById('loginStep1').style.display = 'none';
+  document.getElementById('loginStep2').style.display = 'none';
+  document.getElementById('loginLoading').style.display = show ? 'block' : 'none';
+}
+
+function showStep1() {
+  document.getElementById('loginStep1').style.display = 'block';
+  document.getElementById('loginStep2').style.display = 'none';
+  document.getElementById('loginLoading').style.display = 'none';
+  document.getElementById('loginError1').style.display = 'none';
+  document.getElementById('loginEmail').focus();
+}
+
+function showStep2() {
+  document.getElementById('loginStep1').style.display = 'none';
+  document.getElementById('loginStep2').style.display = 'block';
+  document.getElementById('loginLoading').style.display = 'none';
+  document.getElementById('loginError2').style.display = 'none';
+  document.getElementById('loginCode').value = '';
+  document.getElementById('loginCode').focus();
+}
+
+function showLoginError(step, msg) {
+  const el = document.getElementById('loginError' + step);
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function sendOTP() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  if (!email) { showLoginError(1, 'Please enter your email'); return; }
+
+  document.getElementById('loginError1').style.display = 'none';
+  const btn = document.querySelector('#loginStep1 .btn-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  const { error } = await sb.auth.signInWithOtp({ email });
+
+  btn.disabled = false;
+  btn.textContent = 'Send Code';
+
+  if (error) {
+    showLoginError(1, error.message);
+    return;
+  }
+
+  document.getElementById('loginEmailHint').textContent = 'Check ' + email + ' for an 8-digit code';
+  showStep2();
+}
+
+async function verifyOTP() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const code = document.getElementById('loginCode').value.trim();
+  if (!code || code.length < 6) { showLoginError(2, 'Please enter the full code'); return; }
+
+  document.getElementById('loginError2').style.display = 'none';
+  const btn = document.querySelector('#loginStep2 .btn-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  const { data, error } = await sb.auth.verifyOtp({ email, token: code, type: 'email' });
+
+  btn.disabled = false;
+  btn.textContent = 'Verify';
+
+  if (error) {
+    showLoginError(2, error.message);
+    return;
+  }
+
+  // Auth state change listener will handle the rest
+  showLoading(true);
+}
+
+// Handle Enter key on inputs
+document.getElementById('loginEmail').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); sendOTP(); }
+});
+document.getElementById('loginCode').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); verifyOTP(); }
+});
+
+async function logout() {
+  await sb.auth.signOut();
   currentUser = null;
-  window.location.hash = '';
+  authUser = null;
   document.getElementById('loginScreen').style.display = '';
   document.getElementById('appShell').style.display = 'none';
-  renderLoginScreen();
+  showStep1();
 }
 
 // ============================================================
@@ -658,19 +838,8 @@ subjectInput.addEventListener('input', function() {
     `;
   }).join('');
 
-  // "Add new surgeon" option
-  html += `
-    <div class="autocomplete-create" onclick="createSurgeonFromInput()">
-      + Add new surgeon
-    </div>
-  `;
-
-  // Freeform fallback
-  html += `
-    <div class="autocomplete-freeform" onclick="useFreeform()">
-      Use "${escHtml(this.value)}" as-is (no surgeon link)
-    </div>
-  `;
+  html += `<div class="autocomplete-create" onclick="createSurgeonFromInput()">+ Add new surgeon</div>`;
+  html += `<div class="autocomplete-freeform" onclick="useFreeform()">Use "${escHtml(this.value)}" as-is (no surgeon link)</div>`;
 
   acList.innerHTML = html;
   acList.classList.add('open');
@@ -713,14 +882,12 @@ function selectSurgeon(surgeon) {
 }
 
 function useFreeform() {
-  // Keep the text as-is, no surgeon link
   selectedSurgeon = null;
   document.getElementById('selectedSurgeonId').value = '';
   acList.classList.remove('open');
 }
 
 function createSurgeonFromInput() {
-  // Pre-fill the modal with what the user typed
   const parts = subjectInput.value.trim().split(/[\s,]+/);
   if (parts.length >= 2) {
     document.getElementById('newSurgeonFirst').value = parts[0];
@@ -752,6 +919,55 @@ function toggleTag(el) {
 }
 
 // ============================================================
+// PHOTO UPLOAD
+// ============================================================
+function handlePhotoSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  selectedPhoto = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('photoPreview').src = e.target.result;
+    document.getElementById('photoPlaceholder').style.display = 'none';
+    document.getElementById('photoPreviewWrap').style.display = 'block';
+    document.getElementById('photoUploadArea').classList.add('has-photo');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto(e) {
+  e.stopPropagation();
+  selectedPhoto = null;
+  document.getElementById('photoInput').value = '';
+  document.getElementById('photoPlaceholder').style.display = 'block';
+  document.getElementById('photoPreviewWrap').style.display = 'none';
+  document.getElementById('photoUploadArea').classList.remove('has-photo');
+}
+
+async function uploadPhoto(file) {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const fileName = `${currentUser.id}/${Date.now()}.${ext}`;
+
+  const { data, error } = await sb.storage
+    .from('field-intel-photos')
+    .upload(fileName, file, { contentType: file.type });
+
+  if (error) throw error;
+
+  const { data: urlData } = sb.storage
+    .from('field-intel-photos')
+    .getPublicUrl(fileName);
+
+  return urlData.publicUrl;
+}
+
+function viewPhoto(url) {
+  document.getElementById('photoViewerImg').src = url;
+  document.getElementById('photoViewer').classList.add('open');
+}
+
+// ============================================================
 // SUBMIT NOTE
 // ============================================================
 async function submitNote(e) {
@@ -760,67 +976,75 @@ async function submitNote(e) {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>';
 
-  const nextAction = document.getElementById('nextAction').value.trim();
-  const noteData = {
-    rep_id: currentUser.id,
-    surgeon_id: selectedSurgeon ? selectedSurgeon.id : null,
-    subject_text: subjectInput.value.trim(),
-    note_body: document.getElementById('noteBody').value.trim(),
-    tags: selectedTags,
-    note_date: document.getElementById('noteDate').value,
-    next_action: nextAction || null
-  };
+  try {
+    let photoUrl = null;
+    if (selectedPhoto) {
+      photoUrl = await uploadPhoto(selectedPhoto);
+    }
 
-  const { error } = await sb.from('field_notes').insert([noteData]);
+    const nextAction = document.getElementById('nextAction').value.trim();
+    const noteData = {
+      rep_id: currentUser.id,
+      surgeon_id: selectedSurgeon ? selectedSurgeon.id : null,
+      subject_text: subjectInput.value.trim(),
+      note_body: document.getElementById('noteBody').value.trim(),
+      tags: selectedTags,
+      note_date: document.getElementById('noteDate').value,
+      next_action: nextAction || null,
+      photo_url: photoUrl
+    };
 
-  btn.disabled = false;
-  btn.textContent = 'Submit Note';
+    const { error } = await sb.from('field_notes').insert([noteData]);
 
-  if (error) {
-    alert('Error saving note: ' + error.message);
-    return;
+    if (error) {
+      alert('Error saving note: ' + error.message);
+      return;
+    }
+
+    // Show success
+    const toast = document.getElementById('successToast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+
+    // Reset form
+    document.getElementById('noteForm').reset();
+    document.getElementById('noteDate').value = new Date().toISOString().split('T')[0];
+    selectedTags = [];
+    selectedSurgeon = null;
+    selectedPhoto = null;
+    document.getElementById('selectedSurgeonId').value = '';
+    document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
+    document.getElementById('photoPlaceholder').style.display = 'block';
+    document.getElementById('photoPreviewWrap').style.display = 'none';
+    document.getElementById('photoUploadArea').classList.remove('has-photo');
+
+    loadNotes();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Submit Note';
   }
-
-  // Show success
-  const toast = document.getElementById('successToast');
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 2500);
-
-  // Reset form
-  document.getElementById('noteForm').reset();
-  document.getElementById('noteDate').value = new Date().toISOString().split('T')[0];
-  selectedTags = [];
-  selectedSurgeon = null;
-  document.getElementById('selectedSurgeonId').value = '';
-  document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
-
-  // Refresh feed
-  loadNotes();
 }
 
 // ============================================================
 // NOTES FEED
 // ============================================================
 async function loadNotes() {
-  // Build query — join to reps (author) and surgeons (subject)
   let query = sb.from('field_notes')
     .select('*, reps(name, role, territory_id), surgeons(first_name, last_name, credential, primary_hospital)')
     .order('note_date', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(100);
 
-  // Role-based visibility
   if (currentUser.role === 'Associate Rep') {
-    // S3s see only their own notes
     query = query.eq('rep_id', currentUser.id);
   } else if (currentUser.role === 'Territory Manager') {
-    // TMs see notes from anyone on their territory
     const teamIds = allReps
       .filter(r => r.territory_id === currentUser.territory_id)
       .map(r => r.id);
     query = query.in('rep_id', teamIds);
   }
-  // Owner sees all — no filter
 
   const { data } = await query;
   allNotes = data || [];
@@ -857,6 +1081,7 @@ function renderNotesFeed(filterTag = 'all') {
         </div>
         <div class="note-card-body">${escHtml(n.note_body)}</div>
         ${n.next_action ? `<div style="margin-top:8px;padding:8px 12px;background:var(--orange-100);border-radius:8px;font-size:13px;color:var(--orange-500);font-weight:600;">Next: ${escHtml(n.next_action)}</div>` : ''}
+        ${n.photo_url ? `<div class="note-card-photo"><img src="${escHtml(n.photo_url)}" onclick="viewPhoto('${escHtml(n.photo_url)}')" alt="Photo"></div>` : ''}
         ${n.tags && n.tags.length ? `
           <div class="note-card-tags">
             ${n.tags.map(t => `<span class="note-tag">${escHtml(t)}</span>`).join('')}
@@ -906,10 +1131,8 @@ async function saveNewSurgeon() {
 
   if (error) { alert('Error: ' + error.message); return; }
 
-  // Add to local list and select
   allSurgeons.push(data);
   allSurgeons.sort((a, b) => a.last_name.localeCompare(b.last_name));
-
   selectSurgeon(data);
   closeAddSurgeon();
 }
@@ -921,7 +1144,6 @@ function switchTab(tab) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + tab).classList.add('active');
-
   if (tab === 'feed') loadNotes();
 }
 
