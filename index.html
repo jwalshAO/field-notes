@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/supabase/2.39.3/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -653,12 +653,18 @@ let highlightIndex = -1;
 // INIT
 // ============================================================
 async function init() {
-  // Check for saved session
-  const savedUserId = window.location.hash?.replace('#', '') || null;
+  try {
+    // Check for saved session
+    const savedUserId = window.location.hash?.replace('#', '') || null;
 
-  // Load users
-  const { data: users } = await sb.from('app_users').select('*').eq('active', true).order('name');
-  allUsers = users || [];
+    // Load users
+    const { data: users, error } = await sb.from('app_users').select('*').eq('active', true).order('name');
+    if (error) {
+      console.error('Supabase error:', error);
+      document.getElementById('userList').innerHTML = '<p style="color:red;padding:12px;">Error loading users: ' + error.message + '</p>';
+      return;
+    }
+    allUsers = users || [];
 
   if (savedUserId) {
     const user = allUsers.find(u => u.id === savedUserId);
@@ -669,6 +675,10 @@ async function init() {
   }
 
   renderLoginScreen();
+  } catch (e) {
+    console.error('Init error:', e);
+    document.getElementById('userList').innerHTML = '<p style="color:red;padding:12px;">Error: ' + e.message + '</p>';
+  }
 }
 
 function renderLoginScreen() {
