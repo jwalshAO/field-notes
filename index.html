@@ -180,6 +180,9 @@
     }
     .badge-active { background: var(--green-100); color: var(--green-600); }
     .badge-prospect { background: var(--orange-100); color: var(--orange-500); }
+    .badge-hospital { background: var(--purple-100); color: var(--purple-500); }
+    .badge-manufacturer { background: var(--teal-100); color: var(--teal-500); }
+    .badge-competitor { background: var(--red-100); color: var(--red-600); }
     .autocomplete-create {
       padding: 12px 14px;
       cursor: pointer;
@@ -615,12 +618,12 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Surgeon</label>
+            <label class="form-label">Subject (optional)</label>
             <div class="autocomplete-wrapper">
-              <input type="text" id="subjectInput" class="form-input" placeholder="Start typing a surgeon name..." autocomplete="off" required>
+              <input type="text" id="subjectInput" class="form-input" placeholder="Surgeon, hospital, competitor, manufacturer..." autocomplete="off">
               <div id="autocompleteList" class="autocomplete-list"></div>
             </div>
-            <input type="hidden" id="selectedSurgeonId">
+            <!-- subject selection stored in JS selectedSubject variable -->
           </div>
 
           <div class="form-group">
@@ -727,9 +730,12 @@ let currentUser = null;   // rep record from reps table
 let authUser = null;      // Supabase Auth user
 let allReps = [];
 let allSurgeons = [];
+let allLocations = [];
+let allManufacturers = [];
+let allCompetitors = [];
 let allNotes = [];
 let selectedTags = [];
-let selectedSurgeon = null;
+let selectedSubject = null;  // { type: 'surgeon'|'hospital'|'manufacturer'|'competitor', id: N, display: '...' }
 let selectedPhoto = null; // File object
 let highlightIndex = -1;
 
@@ -792,7 +798,7 @@ async function loadRepsAndLogin() {
   document.getElementById('headerUser').textContent = rep.name.split(' ')[0] + ' \u25BE';
   document.getElementById('noteDate').value = new Date().toISOString().split('T')[0];
 
-  loadSurgeons();
+  loadSubjectEntities();
   loadNotes();
 }
 
@@ -890,49 +896,107 @@ async function logout() {
 }
 
 // ============================================================
-// SURGEONS (for autocomplete)
+// SUBJECT ENTITIES (for autocomplete)
 // ============================================================
-async function loadSurgeons() {
-  const { data } = await sb.from('surgeons')
-    .select('id, first_name, last_name, credential, primary_hospital, status, specialty, funnel_stage')
-    .order('last_name');
-  allSurgeons = data || [];
+async function loadSubjectEntities() {
+  const [surgeons, locations, manufacturers, competitors] = await Promise.all([
+    sb.from('surgeons').select('id, first_name, last_name, credential, primary_hospital, status, specialty, funnel_stage').order('last_name'),
+    sb.from('locations').select('id, name, city, state, category').eq('active', true).order('name'),
+    sb.from('manufacturers').select('id, name, short_name, product_focus, status').order('name'),
+    sb.from('competitors').select('id, name, category').eq('active', true).order('name')
+  ]);
+  allSurgeons = surgeons.data || [];
+  allLocations = locations.data || [];
+  allManufacturers = manufacturers.data || [];
+  allCompetitors = competitors.data || [];
 }
 
 // ============================================================
-// AUTOCOMPLETE — Surgeon search
+// AUTOCOMPLETE — Multi-entity Subject search
 // ============================================================
 const subjectInput = document.getElementById('subjectInput');
 const acList = document.getElementById('autocompleteList');
 
+function buildSubjectResults(q) {
+  const results = [];
+
+  // Surgeons
+  allSurgeons.filter(s => {
+    const full = (s.last_name + ' ' + s.first_name + ' ' + (s.primary_hospital || '')).toLowerCase();
+    return full.includes(q);
+  }).slice(0, 6).forEach(s => {
+    const displayName = s.last_name + ', ' + s.first_name + (s.credential ? ', ' + s.credential : '');
+    const isActive = s.status === 'regular_user' || s.funnel_stage === 'active';
+    results.push({
+      type: 'surgeon', id: s.id, display: displayName,
+      detail: s.primary_hospital || '',
+      badge: 'Surgeon',
+      badgeClass: isActive ? 'badge-active' : 'badge-prospect',
+      raw: s
+    });
+  });
+
+  // Hospitals / Facilities
+  allLocations.filter(l => {
+    return (l.name + ' ' + (l.city || '')).toLowerCase().includes(q);
+  }).slice(0, 4).forEach(l => {
+    const loc = l.city && l.state ? l.city + ', ' + l.state : '';
+    results.push({
+      type: 'hospital', id: l.id, display: l.name,
+      detail: loc,
+      badge: 'Hospital',
+      badgeClass: 'badge-hospital',
+      raw: l
+    });
+  });
+
+  // Manufacturers (our lines)
+  allManufacturers.filter(m => {
+    return (m.name + ' ' + (m.short_name || '') + ' ' + (m.product_focus || '')).toLowerCase().includes(q);
+  }).slice(0, 3).forEach(m => {
+    results.push({
+      type: 'manufacturer', id: m.id, display: m.name,
+      detail: m.product_focus || '',
+      badge: 'Manufacturer',
+      badgeClass: 'badge-manufacturer',
+      raw: m
+    });
+  });
+
+  // Competitors
+  allCompetitors.filter(c => {
+    return c.name.toLowerCase().includes(q);
+  }).slice(0, 4).forEach(c => {
+    results.push({
+      type: 'competitor', id: c.id, display: c.name,
+      detail: '',
+      badge: 'Competitor',
+      badgeClass: 'badge-competitor',
+      raw: c
+    });
+  });
+
+  return results;
+}
+
 subjectInput.addEventListener('input', function() {
   const q = this.value.trim().toLowerCase();
-  selectedSurgeon = null;
-  document.getElementById('selectedSurgeonId').value = '';
+  selectedSubject = null;
   highlightIndex = -1;
 
   if (q.length < 2) { acList.classList.remove('open'); return; }
 
-  const matches = allSurgeons.filter(s => {
-    const full = (s.last_name + ' ' + s.first_name + ' ' + (s.primary_hospital || '')).toLowerCase();
-    return full.includes(q);
-  }).slice(0, 10);
+  const results = buildSubjectResults(q);
 
-  let html = matches.map((s, i) => {
-    const displayName = s.last_name + ', ' + s.first_name + (s.credential ? ', ' + s.credential : '');
-    const isActive = s.status === 'regular_user' || s.funnel_stage === 'active';
-    const badgeClass = isActive ? 'badge-active' : 'badge-prospect';
-    const badgeText = isActive ? 'Active' : (s.funnel_stage || s.status || 'Prospect');
-    return `
-      <div class="autocomplete-item" data-index="${i}" onclick='selectSurgeon(${JSON.stringify(s).replace(/'/g, "&#39;")})'>
-        <div class="ac-name">${highlightMatch(displayName, q)}<span class="ac-badge ${badgeClass}">${escHtml(badgeText)}</span></div>
-        ${s.primary_hospital ? `<div class="ac-detail">${escHtml(s.primary_hospital)}${s.specialty ? ' · ' + escHtml(s.specialty) : ''}</div>` : ''}
-      </div>
-    `;
-  }).join('');
+  let html = results.map((r, i) => `
+    <div class="autocomplete-item" data-index="${i}" onclick='selectSubject(${JSON.stringify({type:r.type,id:r.id,display:r.display}).replace(/'/g, "&#39;")})'>
+      <div class="ac-name">${highlightMatch(r.display, q)}<span class="ac-badge ${r.badgeClass}">${r.badge}</span></div>
+      ${r.detail ? `<div class="ac-detail">${escHtml(r.detail)}</div>` : ''}
+    </div>
+  `).join('');
 
   html += `<div class="autocomplete-create" onclick="createSurgeonFromInput()">+ Add new surgeon</div>`;
-  html += `<div class="autocomplete-freeform" onclick="useFreeform()">Use "${escHtml(this.value)}" as-is (no surgeon link)</div>`;
+  html += `<div class="autocomplete-freeform" onclick="useFreeform()">Use "${escHtml(this.value)}" as-is (no link)</div>`;
 
   acList.innerHTML = html;
   acList.classList.add('open');
@@ -967,16 +1031,14 @@ subjectInput.addEventListener('focus', function() {
   if (this.value.trim().length >= 2) this.dispatchEvent(new Event('input'));
 });
 
-function selectSurgeon(surgeon) {
-  selectedSurgeon = surgeon;
-  document.getElementById('selectedSurgeonId').value = surgeon.id;
-  subjectInput.value = surgeon.last_name + ', ' + surgeon.first_name + (surgeon.credential ? ', ' + surgeon.credential : '');
+function selectSubject(subject) {
+  selectedSubject = subject;
+  subjectInput.value = subject.display;
   acList.classList.remove('open');
 }
 
 function useFreeform() {
-  selectedSurgeon = null;
-  document.getElementById('selectedSurgeonId').value = '';
+  selectedSubject = null;
   acList.classList.remove('open');
 }
 
@@ -1078,8 +1140,12 @@ async function submitNote(e) {
     const nextAction = document.getElementById('nextAction').value.trim();
     const noteData = {
       rep_id: currentUser.id,
-      surgeon_id: selectedSurgeon ? selectedSurgeon.id : null,
       subject_text: subjectInput.value.trim(),
+      subject_type: selectedSubject ? selectedSubject.type : null,
+      surgeon_id: selectedSubject && selectedSubject.type === 'surgeon' ? selectedSubject.id : null,
+      location_id: selectedSubject && selectedSubject.type === 'hospital' ? selectedSubject.id : null,
+      manufacturer_id: selectedSubject && selectedSubject.type === 'manufacturer' ? selectedSubject.id : null,
+      competitor_id: selectedSubject && selectedSubject.type === 'competitor' ? selectedSubject.id : null,
       note_body: document.getElementById('noteBody').value.trim(),
       tags: selectedTags,
       note_date: document.getElementById('noteDate').value,
@@ -1103,9 +1169,8 @@ async function submitNote(e) {
     document.getElementById('noteForm').reset();
     document.getElementById('noteDate').value = new Date().toISOString().split('T')[0];
     selectedTags = [];
-    selectedSurgeon = null;
+    selectedSubject = null;
     selectedPhoto = null;
-    document.getElementById('selectedSurgeonId').value = '';
     document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
     document.getElementById('photoPlaceholder').style.display = 'block';
     document.getElementById('photoPreviewWrap').style.display = 'none';
@@ -1125,7 +1190,7 @@ async function submitNote(e) {
 // ============================================================
 async function loadNotes() {
   let query = sb.from('field_notes')
-    .select('*, reps(name, role, territory_id), surgeons(first_name, last_name, credential, primary_hospital)')
+    .select('*, reps(name, role, territory_id), surgeons(first_name, last_name, credential, primary_hospital), locations(name, city, state), manufacturers(name), competitors(name)')
     .order('note_date', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(100);
@@ -1165,10 +1230,33 @@ function renderNotesFeed(filterTag = 'all') {
 
   container.innerHTML = filtered.map(n => {
     const authorName = n.reps?.name || 'Unknown';
-    const surgeon = n.surgeons;
-    const surgeonDisplay = surgeon ? (surgeon.last_name + ', ' + surgeon.first_name + (surgeon.credential ? ', ' + surgeon.credential : '')) : '';
-    const hospital = surgeon?.primary_hospital || '';
     const dateStr = formatDate(n.note_date);
+
+    // Determine subject display based on entity type
+    let subjectDisplay = '';
+    let subjectBadge = '';
+    let subjectDetail = '';
+    if (n.subject_type === 'surgeon' && n.surgeons) {
+      subjectDisplay = n.surgeons.last_name + ', ' + n.surgeons.first_name + (n.surgeons.credential ? ', ' + n.surgeons.credential : '');
+      subjectDetail = n.surgeons.primary_hospital || '';
+      subjectBadge = '<span class="ac-badge badge-active" style="font-size:9px;">Surgeon</span>';
+    } else if (n.subject_type === 'hospital' && n.locations) {
+      subjectDisplay = n.locations.name;
+      subjectDetail = n.locations.city && n.locations.state ? n.locations.city + ', ' + n.locations.state : '';
+      subjectBadge = '<span class="ac-badge badge-hospital" style="font-size:9px;">Hospital</span>';
+    } else if (n.subject_type === 'manufacturer' && n.manufacturers) {
+      subjectDisplay = n.manufacturers.name;
+      subjectBadge = '<span class="ac-badge badge-manufacturer" style="font-size:9px;">Manufacturer</span>';
+    } else if (n.subject_type === 'competitor' && n.competitors) {
+      subjectDisplay = n.competitors.name;
+      subjectBadge = '<span class="ac-badge badge-competitor" style="font-size:9px;">Competitor</span>';
+    } else if (n.surgeons) {
+      // Legacy notes that have surgeon_id but no subject_type
+      subjectDisplay = n.surgeons.last_name + ', ' + n.surgeons.first_name + (n.surgeons.credential ? ', ' + n.surgeons.credential : '');
+      subjectDetail = n.surgeons.primary_hospital || '';
+    } else {
+      subjectDisplay = n.subject_text || (n.tags && n.tags.length ? n.tags[0] : 'General Note');
+    }
     const isDeleted = !!n.deleted_at;
     const canDelete = !isDeleted && (n.rep_id === currentUser.id || isOwner);
 
@@ -1182,14 +1270,14 @@ function renderNotesFeed(filterTag = 'all') {
     return `
       <div class="note-card${isDeleted ? ' deleted-note' : ''}">
         <div class="note-card-header">
-          <div class="note-card-subject">${escHtml(surgeonDisplay || n.subject_text)}</div>
+          <div class="note-card-subject">${escHtml(subjectDisplay)}${subjectBadge}</div>
           <div style="display:flex;align-items:center;gap:4px;">
             <div class="note-card-date">${dateStr}</div>
             ${canDelete ? `<button class="note-delete-btn" onclick="softDeleteNote('${n.id}')" title="Delete note">✕</button>` : ''}
           </div>
         </div>
         <div class="note-card-meta">
-          ${escHtml(authorName)}${hospital ? ' · ' + escHtml(hospital) : ''}
+          ${escHtml(authorName)}${subjectDetail ? ' · ' + escHtml(subjectDetail) : ''}
         </div>
         <div class="note-card-body">${escHtml(n.note_body)}</div>
         ${n.next_action ? `<div style="margin-top:8px;padding:8px 12px;background:var(--orange-100);border-radius:8px;font-size:13px;color:var(--orange-500);font-weight:600;">Next: ${escHtml(n.next_action)}</div>` : ''}
@@ -1272,7 +1360,8 @@ async function saveNewSurgeon() {
 
   allSurgeons.push(data);
   allSurgeons.sort((a, b) => a.last_name.localeCompare(b.last_name));
-  selectSurgeon(data);
+  const displayName = data.last_name + ', ' + data.first_name + (data.credential ? ', ' + data.credential : '');
+  selectSubject({ type: 'surgeon', id: data.id, display: displayName });
   closeAddSurgeon();
 }
 
