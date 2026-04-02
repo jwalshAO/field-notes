@@ -435,6 +435,47 @@
       font-weight: 600;
     }
 
+    /* Camera button */
+    .camera-btn {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px;
+      background: var(--white);
+      border: 1.5px solid var(--gray-300);
+      border-radius: 10px;
+      color: var(--gray-500);
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .camera-btn:hover, .camera-btn:active {
+      border-color: var(--blue-500);
+      color: var(--blue-600);
+      background: var(--blue-50);
+    }
+    .camera-btn.has-photo {
+      border-color: var(--green-600);
+      color: var(--green-600);
+      background: var(--green-100);
+    }
+    .camera-badge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      background: var(--green-600);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     /* Spinner */
     .spinner {
       display: inline-block;
@@ -612,13 +653,16 @@
       <!-- NEW NOTE SCREEN -->
       <div id="screen-new" class="screen active">
         <form id="noteForm" onsubmit="submitNote(event)">
-          <div class="form-group">
-            <label class="form-label">Date</label>
-            <input type="date" id="noteDate" class="form-input" required>
+          <div class="form-group" style="display:flex;gap:12px;align-items:stretch;">
+            <input type="date" id="noteDate" class="form-input" style="flex:1;" required>
+            <button type="button" class="camera-btn" onclick="document.getElementById('photoInput').click()">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <span id="photoBadge" class="camera-badge" style="display:none;">1</span>
+            </button>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Subject (optional)</label>
+            <label class="form-label">Subject</label>
             <div class="autocomplete-wrapper">
               <input type="text" id="subjectInput" class="form-input" placeholder="Surgeon, hospital, competitor, manufacturer..." autocomplete="off">
               <div id="autocompleteList" class="autocomplete-list"></div>
@@ -640,28 +684,21 @@
 
           <div class="form-group">
             <label class="form-label">Notes</label>
-            <textarea id="noteBody" class="form-input" placeholder="All info is good info — what days a surgeon is where (to build out a calendar), what a surgeon uses, her preferences, things you overheard in the OR, something a Synthes rep tells you..." required></textarea>
+            <textarea id="noteBody" class="form-input" placeholder="All info is good info — what days a surgeon is where (to build out a calendar), what a surgeon uses, her preferences, things you overheard in the OR, something a Synthes rep tells you, something you observe..." required></textarea>
           </div>
 
           <div class="form-group">
             <label class="form-label">Next Action (optional)</label>
-            <textarea id="nextAction" class="form-input" rows="2" style="min-height:auto;resize:none;" placeholder="Setup lunch, email video link, invite to lab, schedule next touch, send samples, follow up after Thursday case..."></textarea>
+            <textarea id="nextAction" class="form-input" rows="3" style="min-height:auto;resize:none;" placeholder="Setup next &quot;touch&quot;, email link/video, text dates to next lab, get dates for a demo, setup lunch, etc..."></textarea>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Photo (optional)</label>
-            <div class="photo-upload-area" id="photoUploadArea" onclick="document.getElementById('photoInput').click()">
-              <div id="photoPlaceholder">
-                <div class="photo-upload-icon">📷</div>
-                <div class="photo-upload-text">Tap to take a photo or choose from gallery</div>
-              </div>
-              <div id="photoPreviewWrap" style="display:none;">
-                <img id="photoPreview" class="photo-preview">
-                <div class="photo-remove" onclick="removePhoto(event)">Remove photo</div>
-              </div>
+          <div id="photoPreviewRow" style="display:none;margin-bottom:16px;">
+            <div style="position:relative;display:inline-block;">
+              <img id="photoPreview" style="max-width:100%;max-height:160px;border-radius:8px;object-fit:cover;">
+              <button type="button" onclick="removePhoto(event)" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);color:white;border:none;border-radius:50%;width:24px;height:24px;font-size:14px;cursor:pointer;line-height:1;">✕</button>
             </div>
-            <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoSelect(this)">
           </div>
+          <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoSelect(this)">
 
           <button type="submit" class="btn-submit" id="submitBtn">Submit Note</button>
         </form>
@@ -995,8 +1032,7 @@ subjectInput.addEventListener('input', function() {
     </div>
   `).join('');
 
-  html += `<div class="autocomplete-create" onclick="createSurgeonFromInput()">+ Add new surgeon</div>`;
-  html += `<div class="autocomplete-freeform" onclick="useFreeform()">Use "${escHtml(this.value)}" as-is (no link)</div>`;
+  html += `<div class="autocomplete-freeform" onclick="useFreeform()">Use "${escHtml(this.value)}" as-is</div>`;
 
   acList.innerHTML = html;
   acList.classList.add('open');
@@ -1084,20 +1120,21 @@ function handlePhotoSelect(input) {
   const reader = new FileReader();
   reader.onload = (e) => {
     document.getElementById('photoPreview').src = e.target.result;
-    document.getElementById('photoPlaceholder').style.display = 'none';
-    document.getElementById('photoPreviewWrap').style.display = 'block';
-    document.getElementById('photoUploadArea').classList.add('has-photo');
+    document.getElementById('photoPreviewRow').style.display = 'block';
+    document.querySelector('.camera-btn').classList.add('has-photo');
+    document.getElementById('photoBadge').style.display = 'flex';
   };
   reader.readAsDataURL(file);
 }
 
 function removePhoto(e) {
+  e.preventDefault();
   e.stopPropagation();
   selectedPhoto = null;
   document.getElementById('photoInput').value = '';
-  document.getElementById('photoPlaceholder').style.display = 'block';
-  document.getElementById('photoPreviewWrap').style.display = 'none';
-  document.getElementById('photoUploadArea').classList.remove('has-photo');
+  document.getElementById('photoPreviewRow').style.display = 'none';
+  document.querySelector('.camera-btn').classList.remove('has-photo');
+  document.getElementById('photoBadge').style.display = 'none';
 }
 
 async function uploadPhoto(file) {
@@ -1172,9 +1209,9 @@ async function submitNote(e) {
     selectedSubject = null;
     selectedPhoto = null;
     document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
-    document.getElementById('photoPlaceholder').style.display = 'block';
-    document.getElementById('photoPreviewWrap').style.display = 'none';
-    document.getElementById('photoUploadArea').classList.remove('has-photo');
+    document.getElementById('photoPreviewRow').style.display = 'none';
+    document.querySelector('.camera-btn').classList.remove('has-photo');
+    document.getElementById('photoBadge').style.display = 'none';
 
     loadNotes();
   } catch (err) {
