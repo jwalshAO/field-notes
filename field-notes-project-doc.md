@@ -5,7 +5,7 @@ Last updated: 2026-04-02 | Session #3
 
 ## 1. Project Identity
 - **What it is:** A mobile-first PWA for Agility Ortho reps to capture field intelligence notes (surgeon visits, competitive intel, case feedback, etc.) that flow into the CRM
-- **Goal:** Reps tap an icon on their phone, sign in once with an email code, and quickly enter notes tied to a surgeon from the real CRM database. Notes are stored in Supabase and available for downstream processing.
+- **Goal:** Reps tap an icon on their phone, sign in once with an email code, and quickly enter notes tied to a surgeon, hospital, competitor, or manufacturer from the real CRM database. Notes are stored in Supabase and available for downstream processing.
 - **Owner:** John Walsh
 - **Key people:** John (owner), Nate/Nick/Noah/Pat (TMs), S3 reps — all 11 team members are in the system
 - **Key systems/tools:** Supabase (`oso-tray-tracker` project — the main Agility ops DB), Vercel (hosting), GitHub (`jwalshAO/field-intel-webapp`)
@@ -14,27 +14,27 @@ Last updated: 2026-04-02 | Session #3
 ---
 
 ## 2. Current Status
-V2 is live on Vercel. V3 updates (session 3) ready to push:
-- **Multi-entity Subject field:** Renamed from "Surgeon" to "Subject (optional)." Autocomplete now searches across 4 entity types: Surgeons (649), Hospitals (168), Manufacturers (8), Competitors (14). Each result shows a color-coded badge (Surgeon=green, Hospital=purple, Manufacturer=teal, Competitor=red). Notes can also be submitted with no subject at all — first tag used as card title.
-- **Competitors table:** New `competitors` table with 14 seeded entries (Acumed, DePuy Synthes, Stryker, Arthrex, Axogen, Zimmer Biomet, TriMed, Avanti, Smith & Nephew, Integra, Medartis, Biederman, AM Surgical, Globus Medical). Reps can add more via the "Add new surgeon" flow.
-- **Splash screen:** Blue gradient splash with app icon, "Field Intel / Agility Ortho" text, and loading spinner. Fades out once auth check completes.
-- **New tag: Observation** — Tags now: Surgeon Interaction, Case Feedback, Competitive Intel, Product Interest, Issue / Complaint, Observation.
-- **Soft-delete notes:** Reps see ✕ on own notes. Deleted notes vanish from rep feeds but Owner sees them faded with "Deleted by [name]" red tag.
-- **Service worker cache bumped to v2.**
-- **Auth session persistence confirmed working.**
+V3 ready to push (NOT YET DEPLOYED). All DB migrations are live. Full feature set:
 
-**V2 features (already live):**
-- Supabase Auth email OTP (8-digit code, persistent session)
-- Surgeon autocomplete from 649 surgeons in the DB
-- Photo upload (camera + gallery) to Supabase Storage
-- Next Action field (optional)
-- Role-based feed visibility (S3 own, TM territory, Owner all)
-- "Field Notes" kraft notebook icon
+**Core flow:** Rep opens app → splash screen (swipe up to dismiss, motivational blurb) → sign in once via email OTP → land on New Note form → pick a Subject (surgeon/hospital/manufacturer/competitor or freeform), select tags, write notes, optionally snap a photo → submit → view in Notes Feed.
+
+**Key features:**
+- **Auth:** Supabase email OTP, 8-digit code, persistent session (sign in once)
+- **Multi-entity Subject:** Autocomplete searches surgeons (649), hospitals (168), manufacturers (8), competitors (14) with color-coded type badges. Optional — can leave blank for general intel. Freeform text also accepted.
+- **Tags:** Surgeon Interaction, Case Feedback, Competitive Intel, Product Interest, Issue / Complaint, Observation
+- **Notes:** Freeform textarea with guiding placeholder
+- **Next Action:** Optional 3-line field with actionable placeholder text
+- **Photo:** Camera icon button beside date field — tap for camera/gallery. Preview appears inline with ✕ to remove.
+- **Soft-delete:** Reps see ✕ on own notes → removed from their feed. Owner sees all deleted notes faded with "Deleted by [name]" red tag.
+- **Role-based visibility:** S3s see own notes, TMs see territory, Owner sees all
+- **Splash screen:** Swipe-up-to-dismiss with subtle bouncing chevron. Blurb: "Every note you capture here makes the whole team sharper. The more we know, the better we sell."
+- **Competitors table:** 14 seeded (Acumed, DePuy Synthes, Stryker, Arthrex, Axogen, Zimmer Biomet, TriMed, Avanti, S&N, Integra, Medartis, Biederman, AM Surgical, Globus Medical)
+- **UI:** Clean minimal form — date + camera on one row, no unnecessary labels, tags at 11px
 
 ---
 
 ## 3. What Exists (Artifacts & Files)
-- `index.html` — Main app (V2: Supabase Auth OTP, surgeon autocomplete, photo upload, next action)
+- `index.html` — Main app (V3: multi-entity Subject, splash screen, soft-delete, streamlined form)
 - `manifest.json` — PWA manifest (short_name: "Field Intel")
 - `sw.js` — Service worker for offline/caching
 - `vercel.json` — Vercel deployment config
@@ -63,9 +63,9 @@ V2 is live on Vercel. V3 updates (session 3) ready to push:
 
 ## 4. Settled Decisions
 - **Supabase Auth email OTP** — Rep enters email → gets 8-digit code → enters code → session persists indefinitely. Same pattern as Tray Tracker. (Decided session 2)
-- **Surgeon autocomplete from real DB** — Subject field pulls from `surgeons` table. Search by last name, first name, primary hospital. Active/prospect badges. "Add new surgeon" creates real DB records. (Decided session 1, built session 2)
-- **Photo upload: camera + gallery** — Optional photo per note. Stored in Supabase Storage. Tap to view full-screen in feed. (Decided session 2)
-- **Next Action field** — Optional 2-line freeform textarea, after Notes. Displays as orange badge in feed. (Decided session 2)
+- **Multi-entity Subject autocomplete** — Searches surgeons, hospitals, manufacturers, competitors with color-coded badges. Freeform text also accepted. Subject not labeled "optional" (to encourage use) but technically not required. (Decided session 3, replaces surgeon-only autocomplete from sessions 1-2)
+- **Photo: camera icon button** — Camera SVG button beside date field (half-width each). Tap for camera/gallery prompt. Green badge when photo attached. Preview inline with ✕ remove. Stored in Supabase Storage. (Redesigned session 3 from full-width photo section)
+- **Next Action field** — Optional 3-line freeform textarea. Placeholder: Setup next "touch", email link/video, text dates to next lab, get dates for a demo, setup lunch, etc... Displays as orange badge in feed. (Decided session 2, updated session 3)
 - **"Surgeon Interaction" tag** — Renamed from "Surgeon Visit" for broader coverage. (Decided session 2)
 - **No separate contacts tab** — Surgeons live in the CRM DB. Field Intel doesn't reinvent that. (Decided session 1)
 - **Freeform notes body** — The note text is freeform. Claude parses it downstream. (Decided session 1)
@@ -73,6 +73,8 @@ V2 is live on Vercel. V3 updates (session 3) ready to push:
 - **Soft-delete** — Reps/TMs can delete their own notes (✕ button). Owner can delete any note. Deleted notes vanish from non-owner feeds but remain visible to Owner with faded styling + "Deleted by [name]" red tag. (Decided session 3)
 - **Multi-entity Subject** — "Surgeon" field renamed to "Subject." Autocomplete searches surgeons, hospitals, manufacturers, and competitors with color-coded type badges. Notes can also have no subject at all (first tag used as title, fallback: "General Note"). (Decided session 3)
 - **Competitors table** — 14 seeded competitors in a new `competitors` table. (Decided session 3)
+- **Splash screen: swipe-up to dismiss** — Blue gradient, app icon, title, motivational blurb, subtle bouncing chevron. Stays until user swipes up or taps. Also works as tap-to-dismiss. Waits for auth check before becoming dismissable. (Decided session 3)
+- **Minimal form layout** — Date and camera share one row (half-width each). No "Date" label. Subject label says "Subject" (not "optional"). Tags label says "Tags (optional)". No "+ Add new surgeon" in dropdown — just freeform "Use as-is" option. (Decided session 3)
 - **"Field Intel" under icon on home screen** — manifest short_name handles this. (Decided session 1)
 - **Text-only notebook icon** — "Field Notes" in bold on kraft paper with leather spine. No triquetra/symbol. Edge-to-edge fill, iOS does its own rounding. Generated by Gemini. (Decided session 2)
 - **All data consolidated in oso-tray-tracker** — One Supabase project for everything. (Decided session 1)
@@ -81,10 +83,16 @@ V2 is live on Vercel. V3 updates (session 3) ready to push:
 ---
 
 ## 5. Active Work Items
-- [ ] Push V3 to GitHub → Vercel auto-deploys (John has the command)
-- [ ] Test on phone: splash screen, Observation tag, soft-delete, session persistence across close/reopen
-- [ ] Register remaining 7 reps in Supabase Auth (happens automatically on first login)
+- [ ] Push V3 to GitHub → Vercel auto-deploys (John has the command — see below)
+- [ ] Test on phone: swipe-up splash, multi-entity Subject, camera button, soft-delete, session persistence
+- [ ] Register remaining 7 reps in Supabase Auth (auto on first login)
+- [ ] Decide: downstream processing — how/when does Claude parse field notes into CRM actions?
 - [ ] Retire/clean up `iwmilzfdrcuixpitrpkh` project (or just leave it)
+
+**Deploy command:**
+```
+cd /Users/johnwalsh/Codex/"Field Intel Webapp" && git add index.html sw.js field-intel-project-doc.md && git commit -m "V3: multi-entity Subject, splash swipe-up, soft-delete, cleaner form" && git push origin main
+```
 
 ---
 
@@ -121,4 +129,4 @@ V2 is live on Vercel. V3 updates (session 3) ready to push:
 ## 9. History Log
 - 2026-04-02 — Session 1: Designed and built V1 of Field Intel webapp. Created Supabase schema (wrong project initially), built PWA frontend, deployed to Vercel via GitHub. Discovered surgeon DB exists in oso-tray-tracker. Decided to consolidate there and rebuild Subject field as surgeon autocomplete. Custom notebook icon finalized. Multiple UI tweaks (tags, placeholder). Changes staged locally but NOT yet pushed to GitHub.
 - 2026-04-02 — Session 2: Major V2 rewrite. Switched to correct Supabase project (oso-tray-tracker). Created `field_notes` table with FK links to reps and surgeons. Added RLS policies. Implemented Supabase Auth email OTP (persistent sessions). Built surgeon autocomplete from 649-row surgeons table. Added photo capture/upload (camera + gallery) with Supabase Storage bucket. Added "Next Action" freeform field. Renamed "Surgeon Visit" tag to "Surgeon Interaction". Removed Contacts tab. Iterated on icon 4 times with Gemini — landed on text-only "Field Notes" on kraft notebook. All changes ready to push but NOT yet deployed.
-- 2026-04-02 — Session 3: Renamed "Surgeon" field to "Subject" — now a multi-entity autocomplete searching surgeons (649), hospitals (168), manufacturers (8), and competitors (14) with color-coded type badges. Created `competitors` table and seeded 14 entries. Added `subject_type`, `location_id`, `manufacturer_id`, `competitor_id` columns to `field_notes`. Subject is fully optional — notes without a subject use first tag as card title. Added splash screen (blue gradient, icon, fade-out). Added "Observation" tag. Built soft-delete (reps can delete own notes, Owner sees all with "Deleted by" tag). Bumped SW cache to v2.
+- 2026-04-02 — Session 3: Big feature + UX session. (1) Multi-entity Subject: renamed "Surgeon" to "Subject", autocomplete now searches surgeons/hospitals/manufacturers/competitors with color-coded badges. Created `competitors` table (14 seeded). Added `subject_type`, `location_id`, `manufacturer_id`, `competitor_id` columns. (2) Splash screen: swipe-up-to-dismiss with motivational blurb and subtle bouncing chevron. (3) Soft-delete: reps can ✕ their notes, Owner sees all with "Deleted by [name]" red tag. Added `deleted_at`, `deleted_by`, `deleted_by_rep_id` columns. (4) Form UX cleanup: date + camera button share one row (no labels), Subject label dropped "(optional)", removed "+ Add new surgeon" from dropdown (just freeform), photo section replaced with inline camera icon, Next Action expanded to 3 rows with new placeholder, Notes placeholder updated. (5) Added "Observation" tag. (6) Bumped SW cache to v2. All DB migrations applied. Code ready to push but NOT yet deployed.
