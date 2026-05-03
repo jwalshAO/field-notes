@@ -1,5 +1,13 @@
-# Field Intel Webapp — Living Project Document
-Last updated: 2026-04-02 | Session #3
+---
+title: "Field Notes (was Field Intel Webapp)"
+cockpit: true
+domain: "Field"
+description: "Mobile-first PWA for reps to capture field intelligence (surgeon visits, competitive intel, case feedback) tied to CRM entities. Notes flow into Supabase and surface on the surgeon dashboard."
+next_action: "Push V3 (NOT YET DEPLOYED). DB migrations are already live."
+---
+
+# Field Notes — Living Project Document
+Last updated: 2026-04-02 | Session #3 (folder/repo renamed from Field Intel; doc copy still uses old name in places)
 
 ---
 
