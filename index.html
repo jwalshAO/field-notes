@@ -66,6 +66,7 @@
     }
     .header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
     .header-sub { font-size: 11px; opacity: 0.85; font-weight: 400; }
+    .header-user-wrapper { position: relative; }
     .header-user {
       font-size: 13px;
       background: rgba(255,255,255,0.2);
@@ -73,8 +74,42 @@
       border-radius: 20px;
       cursor: pointer;
       white-space: nowrap;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
     .header-user:hover { background: rgba(255,255,255,0.3); }
+    .header-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: var(--white);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+      border: 1px solid var(--gray-200);
+      min-width: 160px;
+      overflow: hidden;
+      z-index: 101;
+    }
+    .header-menu.open { display: block; }
+    .header-menu-email {
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--gray-500);
+      border-bottom: 1px solid var(--gray-100);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .header-menu-item {
+      padding: 12px 14px;
+      font-size: 14px;
+      color: var(--gray-700);
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .header-menu-item:hover { background: var(--gray-100); }
+    .header-menu-item.danger { color: var(--red-600); }
 
     /* Navigation */
     .nav-tabs {
@@ -667,7 +702,13 @@
         <h1>Field Intel</h1>
         <div class="header-sub">Agility Ortho</div>
       </div>
-      <div class="header-user" id="headerUser" onclick="logout()"></div>
+      <div class="header-user-wrapper">
+        <div class="header-user" id="headerUser" onclick="toggleHeaderMenu(event)"></div>
+        <div class="header-menu" id="headerMenu">
+          <div class="header-menu-email" id="headerMenuEmail"></div>
+          <div class="header-menu-item danger" onclick="confirmLogout()">Sign Out</div>
+        </div>
+      </div>
     </div>
 
     <div class="nav-tabs">
@@ -984,6 +1025,28 @@ document.getElementById('loginEmail').addEventListener('keydown', (e) => {
 document.getElementById('loginCode').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); verifyOTP(); }
 });
+
+function toggleHeaderMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('headerMenu');
+  if (authUser && authUser.email) {
+    document.getElementById('headerMenuEmail').textContent = authUser.email;
+  }
+  menu.classList.toggle('open');
+}
+
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('headerMenu');
+  if (!menu) return;
+  if (!e.target.closest('.header-user-wrapper')) {
+    menu.classList.remove('open');
+  }
+});
+
+function confirmLogout() {
+  document.getElementById('headerMenu').classList.remove('open');
+  if (confirm('Sign out of Field Intel?')) logout();
+}
 
 async function logout() {
   await sb.auth.signOut();
