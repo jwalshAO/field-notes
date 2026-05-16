@@ -814,11 +814,11 @@
         <div id="chatMode" class="chat-mode">
           <div id="chatThread" class="chat-thread" aria-live="polite"></div>
           <div class="chat-composer">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Tap mic or type..." oninput="updateComposerButton()" onkeydown="if(event.key==='Enter'){event.preventDefault();sendText();}" />
             <button type="button" id="micBtn" class="mic-btn" onclick="toggleRecording()" aria-label="Record voice">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             </button>
-            <input type="text" id="chatInput" class="chat-input" placeholder="Type or tap mic to talk..." onkeydown="if(event.key==='Enter'){event.preventDefault();sendText();}" />
-            <button type="button" id="sendBtn" class="send-btn" onclick="sendText()" aria-label="Send">
+            <button type="button" id="sendBtn" class="send-btn" onclick="sendText()" aria-label="Send" style="display:none;">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
           </div>
@@ -1702,6 +1702,35 @@ let parsedNoteDraft = null;    // populated when Q calls submit_note; shown in c
 let mediaRecorder = null;
 let recordChunks = [];
 let recordMime = '';
+let audioContext = null;
+let silenceTimer = null;
+let recordStream = null;
+let recordStartTime = 0;
+const SILENCE_MS = 1500;        // auto-stop after 1.5s of silence
+const SILENCE_THRESHOLD = 8;    // amplitude threshold (0-255 scale)
+const MIN_RECORD_MS = 600;      // require at least 0.6s of recording before auto-stop fires
+const MAX_RECORD_MS = 60000;    // hard cap 60s
+
+function updateComposerButton() {
+  const input = document.getElementById('chatInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const micBtn = document.getElementById('micBtn');
+  if (input.value.trim()) {
+    sendBtn.style.display = '';
+    micBtn.style.display = 'none';
+  } else {
+    sendBtn.style.display = 'none';
+    micBtn.style.display = '';
+  }
+}
+
+function toolCallLabel(name, input) {
+  if (name === 'lookup_entity')        return `Looking up "${input.query}"`;
+  if (name === 'surgeons_at_location') return `Checking who operates there`;
+  if (name === 'recent_notes_about')   return `Checking recent notes`;
+  if (name === 'submit_note')          return `Preparing note for review`;
+  return name;
+}
 
 function pickAudioMime() {
   const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav'];
@@ -1819,6 +1848,12 @@ async function sendToQ({ text, audioBase64, audioMime }) {
       }
     }
 
+    if (Array.isArray(data.tool_calls_made)) {
+      data.tool_calls_made.forEach(tc => {
+        if (tc.name !== 'submit_note') appendChatSystem('🔍 ' + toolCallLabel(tc.name, tc.input || {}));
+      });
+    }
+
     if (data.assistant_message) {
       appendChatBubble('assistant', data.assistant_message);
     }
@@ -1843,30 +1878,38 @@ async function sendToQ({ text, audioBase64, audioMime }) {
   }
 }
 
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+  }
+  document.getElementById('micBtn').classList.remove('recording');
+  if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null; }
+  if (audioContext) { try { audioContext.close(); } catch(_){} audioContext = null; }
+}
+
 async function toggleRecording() {
   if (chatBusy) return;
   const btn = document.getElementById('micBtn');
 
   if (mediaRecorder && mediaRecorder.state === 'recording') {
-    mediaRecorder.stop();
-    btn.classList.remove('recording');
+    stopRecording();
     return;
   }
 
-  // Start recording
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recordStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     recordMime = pickAudioMime();
     recordChunks = [];
+    recordStartTime = Date.now();
     mediaRecorder = recordMime
-      ? new MediaRecorder(stream, { mimeType: recordMime })
-      : new MediaRecorder(stream);
+      ? new MediaRecorder(recordStream, { mimeType: recordMime })
+      : new MediaRecorder(recordStream);
 
     mediaRecorder.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) recordChunks.push(e.data);
     };
     mediaRecorder.onstop = async () => {
-      stream.getTracks().forEach(t => t.stop());
+      if (recordStream) { recordStream.getTracks().forEach(t => t.stop()); recordStream = null; }
       const blob = new Blob(recordChunks, { type: mediaRecorder.mimeType || recordMime || 'audio/webm' });
       if (blob.size === 0) return;
       const placeholder = appendChatBubble('user', '🎤 transcribing…');
@@ -1876,6 +1919,36 @@ async function toggleRecording() {
     };
     mediaRecorder.start();
     btn.classList.add('recording');
+
+    // Silence detection — auto-stop after SILENCE_MS of quiet
+    const AC = window.AudioContext || window.webkitAudioContext;
+    audioContext = new AC();
+    const source = audioContext.createMediaStreamSource(recordStream);
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.6;
+    source.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    let lastSoundAt = Date.now();
+    let hasSpoken = false;
+
+    silenceTimer = setInterval(() => {
+      analyser.getByteFrequencyData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) sum += data[i];
+      const avg = sum / data.length;
+      const now = Date.now();
+      if (avg > SILENCE_THRESHOLD) {
+        lastSoundAt = now;
+        hasSpoken = true;
+      }
+      const elapsed = now - recordStartTime;
+      if (hasSpoken && elapsed > MIN_RECORD_MS && now - lastSoundAt > SILENCE_MS) {
+        stopRecording();
+      } else if (elapsed > MAX_RECORD_MS) {
+        stopRecording();
+      }
+    }, 100);
   } catch (err) {
     const errDiv = document.createElement('div');
     errDiv.className = 'chat-error';
