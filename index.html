@@ -650,6 +650,91 @@
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(-6px); }
     }
+
+    /* V4 — Q chat mode */
+    .mode-bar { display: flex; justify-content: flex-end; margin-bottom: 8px; align-items: center; }
+    .mode-bar-q { font-size: 12px; color: var(--gray-500); flex: 1; font-weight: 600; letter-spacing: 0.3px; }
+    .mode-link {
+      background: none; border: none; color: var(--gray-500);
+      font-size: 13px; font-weight: 500; cursor: pointer; padding: 6px 10px;
+      border-radius: 8px; -webkit-tap-highlight-color: transparent;
+    }
+    .mode-link:hover, .mode-link:active { background: var(--gray-100); color: var(--blue-600); }
+
+    .chat-mode { display: flex; flex-direction: column; }
+    .chat-thread {
+      background: var(--white); border-radius: 14px;
+      padding: 14px; min-height: 320px; max-height: 56vh;
+      overflow-y: auto; border: 1px solid var(--gray-200);
+      display: flex; flex-direction: column; gap: 10px;
+      margin-bottom: 12px;
+    }
+    .chat-bubble {
+      max-width: 82%; padding: 10px 14px;
+      border-radius: 16px; font-size: 15px; line-height: 1.45;
+      word-wrap: break-word; white-space: pre-wrap;
+    }
+    .chat-bubble.user {
+      align-self: flex-end; background: var(--blue-600); color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .chat-bubble.assistant {
+      align-self: flex-start; background: var(--gray-100); color: var(--gray-900);
+      border-bottom-left-radius: 4px;
+    }
+    .chat-bubble.system {
+      align-self: center; background: transparent; color: var(--gray-400);
+      font-size: 11px; font-style: italic; padding: 4px 0;
+    }
+    .chat-typing {
+      align-self: flex-start; display: inline-flex; gap: 4px;
+      padding: 14px 14px; background: var(--gray-100); border-radius: 16px;
+      border-bottom-left-radius: 4px;
+    }
+    .chat-typing span {
+      width: 6px; height: 6px; background: var(--gray-400); border-radius: 50%;
+      animation: typingBounce 1.4s infinite ease-in-out both;
+    }
+    .chat-typing span:nth-child(2) { animation-delay: 0.16s; }
+    .chat-typing span:nth-child(3) { animation-delay: 0.32s; }
+    @keyframes typingBounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    .chat-composer {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--white); padding: 8px;
+      border-radius: 28px; border: 1px solid var(--gray-300);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .mic-btn, .send-btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--blue-600); color: white; border: none;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mic-btn:active, .send-btn:active { background: var(--blue-700); }
+    .mic-btn.recording {
+      background: var(--red-600);
+      animation: micPulse 1.2s ease-in-out infinite;
+    }
+    .send-btn:disabled { background: var(--gray-300); cursor: default; }
+    @keyframes micPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+      50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+    }
+    .chat-input {
+      flex: 1; border: none; outline: none; background: transparent;
+      font-size: 16px; padding: 8px 4px; color: var(--gray-900);
+      min-width: 0;
+    }
+    .chat-input::placeholder { color: var(--gray-400); }
+    .chat-error {
+      align-self: center; background: var(--red-100); color: var(--red-600);
+      font-size: 12px; padding: 6px 12px; border-radius: 12px;
+    }
   </style>
 </head>
 <body>
@@ -719,7 +804,28 @@
     <div class="content">
       <!-- NEW NOTE SCREEN -->
       <div id="screen-new" class="screen active">
-        <form id="noteForm" onsubmit="submitNote(event)">
+        <!-- Mode toggle bar -->
+        <div class="mode-bar" id="modeBar">
+          <div class="mode-bar-q" id="modeBarLabel">Q</div>
+          <button type="button" class="mode-link" id="modeToggleLink" onclick="toggleMode()">Use form ▸</button>
+        </div>
+
+        <!-- V4 Chat mode (default) -->
+        <div id="chatMode" class="chat-mode">
+          <div id="chatThread" class="chat-thread" aria-live="polite"></div>
+          <div class="chat-composer">
+            <button type="button" id="micBtn" class="mic-btn" onclick="toggleRecording()" aria-label="Record voice">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </button>
+            <input type="text" id="chatInput" class="chat-input" placeholder="Type or tap mic to talk..." onkeydown="if(event.key==='Enter'){event.preventDefault();sendText();}" />
+            <button type="button" id="sendBtn" class="send-btn" onclick="sendText()" aria-label="Send">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- V3 Form mode (escape hatch — hidden by default) -->
+        <form id="noteForm" onsubmit="submitNote(event)" style="display:none;">
           <div class="form-group" style="display:flex;gap:12px;align-items:stretch;">
             <input type="date" id="noteDate" class="form-input" style="flex:1;" required>
             <button type="button" class="camera-btn" onclick="document.getElementById('photoInput').click()">
@@ -814,6 +920,34 @@
   </div>
 
   <!-- FULL-SCREEN PHOTO VIEWER -->
+  <!-- CONFIRM-AND-EDIT MODAL (V4 conversational capture) -->
+  <div id="confirmModal" class="modal-overlay" onclick="closeConfirmModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3 style="margin-bottom:14px;">Confirm note</h3>
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <input type="text" id="confirmSubject" class="form-input" />
+        <div id="confirmSubjectMeta" style="font-size:11px;color:var(--gray-500);margin-top:4px;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tags</label>
+        <div class="tags-row" id="confirmTags"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea id="confirmNoteBody" class="form-input" style="min-height:110px;"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Next Action</label>
+        <textarea id="confirmNextAction" class="form-input" rows="2" style="min-height:auto;resize:none;"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button type="button" class="btn-submit" style="flex:1;background:var(--gray-200);color:var(--gray-700);" onclick="closeConfirmModalBack()">Back to chat</button>
+        <button type="button" class="btn-submit" id="confirmSubmitBtn" style="flex:2;" onclick="finalizeNote()">Submit</button>
+      </div>
+    </div>
+  </div>
+
   <div id="photoViewer" class="photo-viewer" onclick="this.classList.remove('open')">
     <img id="photoViewerImg" src="">
   </div>
@@ -940,6 +1074,7 @@ async function loadRepsAndLogin() {
 
   loadSubjectEntities();
   loadNotes();
+  initChat();
 }
 
 function showLoading(show) {
@@ -1555,6 +1690,306 @@ function formatDate(dateStr) {
   if (diff === 1) return 'Yesterday';
   if (diff < 7) return d.toLocaleDateString('en-US', { weekday: 'long' });
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ============================================================
+// V4 — Q CONVERSATIONAL CAPTURE (chat mode)
+// ============================================================
+let chatHistory = [];          // conversation array sent to the edge function
+let chatBusy = false;          // true while waiting for a Q response
+let chatMode = 'chat';         // 'chat' or 'form' — escape hatch toggle
+let parsedNoteDraft = null;    // populated when Q calls submit_note; shown in confirm modal
+let mediaRecorder = null;
+let recordChunks = [];
+let recordMime = '';
+
+function pickAudioMime() {
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav'];
+  if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return '';
+  for (const t of candidates) {
+    if (MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return '';
+}
+
+function initChat() {
+  chatHistory = [];
+  parsedNoteDraft = null;
+  const thread = document.getElementById('chatThread');
+  thread.innerHTML = '';
+  appendChatBubble('assistant', "Q here. What've you got?");
+}
+
+function toggleMode() {
+  const chat = document.getElementById('chatMode');
+  const form = document.getElementById('noteForm');
+  const link = document.getElementById('modeToggleLink');
+  const label = document.getElementById('modeBarLabel');
+  if (chatMode === 'chat') {
+    chat.style.display = 'none';
+    form.style.display = '';
+    link.textContent = '◂ Talk to Q';
+    label.textContent = 'Form';
+    chatMode = 'form';
+  } else {
+    chat.style.display = '';
+    form.style.display = 'none';
+    link.textContent = 'Use form ▸';
+    label.textContent = 'Q';
+    chatMode = 'chat';
+  }
+}
+
+function appendChatBubble(role, text) {
+  const thread = document.getElementById('chatThread');
+  const div = document.createElement('div');
+  div.className = 'chat-bubble ' + role;
+  div.textContent = text;
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+  return div;
+}
+
+function appendChatSystem(text) {
+  const thread = document.getElementById('chatThread');
+  const div = document.createElement('div');
+  div.className = 'chat-bubble system';
+  div.textContent = text;
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+  return div;
+}
+
+function showTyping() {
+  const thread = document.getElementById('chatThread');
+  const div = document.createElement('div');
+  div.className = 'chat-typing';
+  div.id = 'chatTyping';
+  div.innerHTML = '<span></span><span></span><span></span>';
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function hideTyping() {
+  const el = document.getElementById('chatTyping');
+  if (el) el.remove();
+}
+
+async function sendText() {
+  if (chatBusy) return;
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  appendChatBubble('user', text);
+  await sendToQ({ text });
+}
+
+async function sendToQ({ text, audioBase64, audioMime }) {
+  if (chatBusy) return;
+  chatBusy = true;
+  document.getElementById('sendBtn').disabled = true;
+  showTyping();
+
+  try {
+    const payload = { history: chatHistory };
+    if (audioBase64) {
+      payload.audio_base64 = audioBase64;
+      payload.audio_mime = audioMime || 'audio/webm';
+    } else {
+      payload.text = text;
+    }
+
+    const { data, error } = await sb.functions.invoke('field-notes-chat', { body: payload });
+    hideTyping();
+
+    if (error) throw error;
+    if (data.error) throw new Error(data.error);
+
+    if (data.transcript && audioBase64) {
+      // Replace the last user bubble (if it was a placeholder) or just show the transcript
+      const thread = document.getElementById('chatThread');
+      const lastBubble = thread.querySelector('.chat-bubble.user:last-of-type');
+      // If we showed a "🎤 ..." placeholder, replace it; otherwise append
+      if (lastBubble && lastBubble.dataset.placeholder === '1') {
+        lastBubble.textContent = data.transcript;
+        delete lastBubble.dataset.placeholder;
+      } else {
+        appendChatBubble('user', data.transcript);
+      }
+    }
+
+    if (data.assistant_message) {
+      appendChatBubble('assistant', data.assistant_message);
+    }
+
+    chatHistory = data.updated_history || chatHistory;
+
+    if (data.is_done && data.parsed_note) {
+      parsedNoteDraft = data.parsed_note;
+      // Small pause for the rep to read Q's final line before the modal pops
+      setTimeout(() => showConfirmModal(parsedNoteDraft), 600);
+    }
+  } catch (err) {
+    hideTyping();
+    const errDiv = document.createElement('div');
+    errDiv.className = 'chat-error';
+    errDiv.textContent = 'Connection issue: ' + (err.message || err);
+    document.getElementById('chatThread').appendChild(errDiv);
+    document.getElementById('chatThread').scrollTop = document.getElementById('chatThread').scrollHeight;
+  } finally {
+    chatBusy = false;
+    document.getElementById('sendBtn').disabled = false;
+  }
+}
+
+async function toggleRecording() {
+  if (chatBusy) return;
+  const btn = document.getElementById('micBtn');
+
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    btn.classList.remove('recording');
+    return;
+  }
+
+  // Start recording
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recordMime = pickAudioMime();
+    recordChunks = [];
+    mediaRecorder = recordMime
+      ? new MediaRecorder(stream, { mimeType: recordMime })
+      : new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) recordChunks.push(e.data);
+    };
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(recordChunks, { type: mediaRecorder.mimeType || recordMime || 'audio/webm' });
+      if (blob.size === 0) return;
+      const placeholder = appendChatBubble('user', '🎤 transcribing…');
+      placeholder.dataset.placeholder = '1';
+      const base64 = await blobToBase64(blob);
+      await sendToQ({ audioBase64: base64, audioMime: blob.type });
+    };
+    mediaRecorder.start();
+    btn.classList.add('recording');
+  } catch (err) {
+    const errDiv = document.createElement('div');
+    errDiv.className = 'chat-error';
+    errDiv.textContent = 'Mic blocked. Check Safari permissions, or type instead.';
+    document.getElementById('chatThread').appendChild(errDiv);
+    btn.classList.remove('recording');
+  }
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result || '';
+      const comma = result.indexOf(',');
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// ============================================================
+// CONFIRM-AND-EDIT MODAL
+// ============================================================
+const TAG_LIST = ['Surgeon Interaction','Case Feedback','Competitive Intel','Product Interest','Issue / Complaint','Observation'];
+let confirmSelectedTags = [];
+
+function showConfirmModal(parsed) {
+  document.getElementById('confirmSubject').value = parsed.subject_text || '';
+  const meta = document.getElementById('confirmSubjectMeta');
+  if (parsed.subject_type && parsed.subject_type !== 'freeform') {
+    meta.textContent = parsed.subject_type + (parsed.subject_id ? ' #' + parsed.subject_id : '');
+  } else {
+    meta.textContent = '';
+  }
+  document.getElementById('confirmNoteBody').value = parsed.note_body || '';
+  document.getElementById('confirmNextAction').value = parsed.next_action || '';
+  confirmSelectedTags = Array.isArray(parsed.tags) ? parsed.tags.slice() : [];
+  renderConfirmTags();
+  document.getElementById('confirmModal').classList.add('open');
+}
+
+function renderConfirmTags() {
+  const wrap = document.getElementById('confirmTags');
+  wrap.innerHTML = '';
+  TAG_LIST.forEach(tag => {
+    const span = document.createElement('span');
+    span.className = 'tag-chip' + (confirmSelectedTags.includes(tag) ? ' selected' : '');
+    span.textContent = tag;
+    span.onclick = () => {
+      const i = confirmSelectedTags.indexOf(tag);
+      if (i >= 0) confirmSelectedTags.splice(i, 1); else confirmSelectedTags.push(tag);
+      renderConfirmTags();
+    };
+    wrap.appendChild(span);
+  });
+}
+
+function closeConfirmModalBack() {
+  document.getElementById('confirmModal').classList.remove('open');
+}
+
+function closeConfirmModal(e) {
+  if (e && e.target.id !== 'confirmModal') return;
+  document.getElementById('confirmModal').classList.remove('open');
+}
+
+async function finalizeNote() {
+  const btn = document.getElementById('confirmSubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    const parsed = parsedNoteDraft || {};
+    const subjectText = document.getElementById('confirmSubject').value.trim();
+    const noteBody = document.getElementById('confirmNoteBody').value.trim();
+    const nextAction = document.getElementById('confirmNextAction').value.trim();
+
+    const noteData = {
+      rep_id: currentUser.id,
+      subject_text: subjectText || null,
+      subject_type: parsed.subject_type === 'freeform' ? null
+                   : parsed.subject_type === 'location' ? 'hospital'
+                   : parsed.subject_type || null,
+      surgeon_id:      (parsed.subject_type === 'surgeon')      ? (parsed.subject_id || null) : null,
+      location_id:     (parsed.subject_type === 'location')     ? (parsed.subject_id || null) : null,
+      manufacturer_id: (parsed.subject_type === 'manufacturer') ? (parsed.subject_id || null) : null,
+      competitor_id:   (parsed.subject_type === 'competitor')   ? (parsed.subject_id || null) : null,
+      note_body: noteBody,
+      tags: confirmSelectedTags,
+      note_date: new Date().toISOString().split('T')[0],
+      next_action: nextAction || null,
+      photo_url: null,
+    };
+
+    const { error } = await sb.from('field_notes').insert([noteData]);
+    if (error) throw error;
+
+    document.getElementById('confirmModal').classList.remove('open');
+    const toast = document.getElementById('successToast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+
+    // Reset chat for the next note
+    parsedNoteDraft = null;
+    initChat();
+    loadNotes();
+  } catch (err) {
+    alert('Error: ' + (err.message || err));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Submit';
+  }
 }
 
 // ============================================================
