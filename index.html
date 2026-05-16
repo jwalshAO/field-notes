@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Field Intel">
+  <meta name="apple-mobile-web-app-title" content="Field Notes">
   <meta name="theme-color" content="#1e40af">
-  <title>Field Intel — Agility Ortho</title>
+  <title>Field Notes — Agility Ortho</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -784,11 +784,11 @@
 
   <!-- SPLASH SCREEN -->
   <div id="splashScreen" class="splash-screen">
-    <img src="icon-192.png" alt="Field Intel" class="splash-icon">
-    <div class="splash-title">Field Intel</div>
+    <img src="icon-192.png" alt="Field Notes" class="splash-icon">
+    <div class="splash-title">Field Notes</div>
     <div class="splash-subtitle">Agility Ortho</div>
     <div class="splash-headline">Better intel in, better outcomes out.</div>
-    <div class="splash-blurb">Every field note you enter makes our entire team smarter — the more we know about our surgeons, facilities, and competitors, the more prepared, relevant, and valuable we are to our customers.</div>
+    <div class="splash-blurb">Every note you enter makes our entire team smarter — the more we know about our surgeons, facilities, and competitors, the more prepared, relevant, and valuable we are to our customers and manufacturer partners.</div>
     <div class="splash-arrow">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
     </div>
@@ -796,7 +796,7 @@
 
   <!-- LOGIN SCREEN -->
   <div id="loginScreen" class="login-screen">
-    <div class="login-logo">Field Intel</div>
+    <div class="login-logo">Field Notes</div>
     <div class="login-sub">Agility Ortho</div>
     <div class="login-card">
       <!-- Step 1: Email -->
@@ -827,7 +827,7 @@
   <div id="appShell" style="display:none;">
     <div class="header">
       <div>
-        <h1>Field Intel</h1>
+        <h1>Field Notes</h1>
         <div class="header-sub">Agility Ortho</div>
       </div>
       <div class="header-user-wrapper">
@@ -1228,7 +1228,7 @@ document.addEventListener('click', (e) => {
 
 function confirmLogout() {
   document.getElementById('headerMenu').classList.remove('open');
-  if (confirm('Sign out of Field Intel?')) logout();
+  if (confirm('Sign out of Field Notes?')) logout();
 }
 
 async function logout() {
@@ -1571,7 +1571,7 @@ function renderNotesFeed(filterTag = 'all') {
   }
 
   if (filtered.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📝</div><div class="empty-state-text">No notes yet. Go add some field intel!</div></div>';
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📝</div><div class="empty-state-text">No notes yet. Go capture some!</div></div>';
     return;
   }
 

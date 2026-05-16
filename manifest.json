@@ -1,7 +1,7 @@
 {
-  "name": "Field Intel — Agility Ortho",
-  "short_name": "Field Intel",
-  "description": "Field intelligence notes for Agility Ortho reps",
+  "name": "Field Notes — Agility Ortho",
+  "short_name": "Field Notes",
+  "description": "Field notes for Agility Ortho reps",
   "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
