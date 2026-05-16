@@ -1,4 +1,4 @@
-const CACHE_NAME = 'field-intel-v4-6';
+const CACHE_NAME = 'field-intel-v4-7';
 const ASSETS = [
   '/index.html',
   '/manifest.json'
