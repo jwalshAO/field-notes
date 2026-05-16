@@ -1513,6 +1513,7 @@ async function submitNote(e) {
 async function loadNotes() {
   let query = sb.from('field_notes')
     .select('*, reps(name, role, territory_id), surgeons(first_name, last_name, credential, primary_hospital), locations(name, city, state), manufacturers(name), competitors(name)')
+    .eq('is_test', false)
     .order('note_date', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(100);
