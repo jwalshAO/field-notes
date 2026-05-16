@@ -661,6 +661,27 @@
     }
     .mode-link:hover, .mode-link:active { background: var(--gray-100); color: var(--blue-600); }
 
+    .drafts-banner {
+      background: #fef9c3; border: 1px solid #fde68a; color: #854d0e;
+      border-radius: 10px; padding: 10px 12px; margin-bottom: 10px;
+      font-size: 13px; line-height: 1.4;
+    }
+    .drafts-banner-title { font-weight: 600; margin-bottom: 6px; }
+    .draft-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 0; border-top: 1px solid #fde68a;
+    }
+    .draft-row:first-of-type { border-top: 0; padding-top: 4px; }
+    .draft-row-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .draft-row-time { color: #a16207; font-size: 11px; }
+    .draft-btn {
+      background: var(--white); color: #854d0e;
+      border: 1px solid #fde68a; border-radius: 6px;
+      padding: 4px 8px; font-size: 11px; font-weight: 600;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .draft-btn.discard { color: #b91c1c; border-color: #fecaca; }
+
     .chat-mode { display: flex; flex-direction: column; }
     .chat-thread {
       background: var(--white); border-radius: 14px;
@@ -834,6 +855,7 @@
 
         <!-- V4 Chat mode (default) -->
         <div id="chatMode" class="chat-mode">
+          <div id="draftsBanner" class="drafts-banner" style="display:none;"></div>
           <div id="chatThread" class="chat-thread" aria-live="polite"></div>
           <div class="chat-composer">
             <input type="text" id="chatInput" class="chat-input" placeholder="Tap mic or type..." oninput="updateComposerButton()" onkeydown="if(event.key==='Enter'){event.preventDefault();sendText();}" />
@@ -1100,6 +1122,7 @@ async function loadRepsAndLogin() {
   loadSubjectEntities();
   loadNotes();
   initChat();
+  loadDrafts();
 }
 
 function showLoading(show) {
@@ -1514,6 +1537,7 @@ async function loadNotes() {
   let query = sb.from('field_notes')
     .select('*, reps(name, role, territory_id), surgeons(first_name, last_name, credential, primary_hospital), locations(name, city, state), manufacturers(name), competitors(name)')
     .eq('is_test', false)
+    .in('status', ['submitted', 'deleted'])
     .order('note_date', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(100);
@@ -1627,6 +1651,7 @@ async function softDeleteNote(noteId) {
   if (!confirm('Delete this note? It will be removed from your feed.')) return;
 
   const { error } = await sb.from('field_notes').update({
+    status: 'deleted',
     deleted_at: new Date().toISOString(),
     deleted_by: authUser.id,
     deleted_by_rep_id: currentUser.id
@@ -1725,6 +1750,8 @@ let chatHistory = [];          // conversation array sent to the edge function
 let chatBusy = false;          // true while waiting for a Q response
 let chatMode = 'chat';         // 'chat' or 'form' — escape hatch toggle
 let parsedNoteDraft = null;    // populated when Q calls submit_note; shown in confirm modal
+let currentDraftId = null;     // field_notes.id of the active draft row (null = not yet created)
+let myDrafts = [];             // cached list of this rep's unsubmitted drafts
 let mediaRecorder = null;
 let recordChunks = [];
 let recordMime = '';
@@ -1770,10 +1797,146 @@ function pickAudioMime() {
 function initChat() {
   chatHistory = [];
   parsedNoteDraft = null;
+  currentDraftId = null;
   const thread = document.getElementById('chatThread');
   thread.innerHTML = '';
   appendChatBubble('assistant', "Q here. What've you got?");
   setDoneEnabled(false);
+}
+
+// Persist the active chat to a field_notes row with status='draft'.
+// First call after a successful Q response → INSERT. Subsequent → UPDATE.
+async function persistDraft(parsed) {
+  try {
+    const parsedFields = parsed ? {
+      subject_text: parsed.subject_text || null,
+      subject_type: parsed.subject_type === 'freeform' ? null
+                   : parsed.subject_type === 'location' ? 'hospital'
+                   : parsed.subject_type || null,
+      surgeon_id:      (parsed.subject_type === 'surgeon')      ? (parsed.subject_id || null) : null,
+      location_id:     (parsed.subject_type === 'location')     ? (parsed.subject_id || null) : null,
+      manufacturer_id: (parsed.subject_type === 'manufacturer') ? (parsed.subject_id || null) : null,
+      competitor_id:   (parsed.subject_type === 'competitor')   ? (parsed.subject_id || null) : null,
+      note_body: parsed.note_body || null,
+      tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+      next_action: parsed.next_action || null,
+    } : {};
+
+    if (!currentDraftId) {
+      const { data, error } = await sb.from('field_notes').insert([{
+        rep_id: currentUser.id,
+        status: 'draft',
+        conversation: chatHistory,
+        draft_updated_at: new Date().toISOString(),
+        note_date: new Date().toISOString().split('T')[0],
+        ...parsedFields,
+      }]).select('id').single();
+      if (error) throw error;
+      currentDraftId = data.id;
+    } else {
+      const { error } = await sb.from('field_notes').update({
+        conversation: chatHistory,
+        draft_updated_at: new Date().toISOString(),
+        ...parsedFields,
+      }).eq('id', currentDraftId);
+      if (error) throw error;
+    }
+  } catch (err) {
+    console.warn('persistDraft failed:', err);
+  }
+}
+
+function relativeTime(iso) {
+  if (!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.round(ms / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + 'm ago';
+  const h = Math.round(m / 60);
+  if (h < 24) return h + 'h ago';
+  const d = Math.round(h / 24);
+  return d + 'd ago';
+}
+
+async function loadDrafts() {
+  if (!currentUser) return;
+  const { data, error } = await sb.from('field_notes')
+    .select('id, subject_text, draft_updated_at, created_at')
+    .eq('rep_id', currentUser.id)
+    .eq('status', 'draft')
+    .order('draft_updated_at', { ascending: false, nullsFirst: false })
+    .limit(10);
+  if (error) { console.warn('loadDrafts failed:', error); return; }
+  // Don't show the active draft (the one we're currently working on) in the banner
+  myDrafts = (data || []).filter(d => d.id !== currentDraftId);
+  renderDraftsBanner();
+}
+
+function renderDraftsBanner() {
+  const banner = document.getElementById('draftsBanner');
+  if (!banner) return;
+  if (!myDrafts.length) { banner.style.display = 'none'; banner.innerHTML = ''; return; }
+  const rows = myDrafts.map(d => {
+    const label = (d.subject_text && d.subject_text.trim()) ? d.subject_text : 'Untitled note';
+    const when = relativeTime(d.draft_updated_at || d.created_at);
+    return `
+      <div class="draft-row">
+        <div class="draft-row-text">${escHtml(label)} <span class="draft-row-time">— ${when}</span></div>
+        <button type="button" class="draft-btn" onclick="resumeDraft(${d.id})">Resume</button>
+        <button type="button" class="draft-btn discard" onclick="discardDraft(${d.id})">✕</button>
+      </div>`;
+  }).join('');
+  const word = myDrafts.length === 1 ? 'note' : 'notes';
+  banner.innerHTML = `<div class="drafts-banner-title">Unfinished ${myDrafts.length} ${word}</div>${rows}`;
+  banner.style.display = '';
+}
+
+async function resumeDraft(id) {
+  if (chatBusy) return;
+  try {
+    const { data, error } = await sb.from('field_notes')
+      .select('id, conversation, subject_text, subject_type, surgeon_id, location_id, manufacturer_id, competitor_id, note_body, tags, next_action')
+      .eq('id', id).eq('rep_id', currentUser.id).eq('status', 'draft').single();
+    if (error) throw error;
+    if (!data) return;
+
+    // Rehydrate state
+    currentDraftId = data.id;
+    chatHistory = Array.isArray(data.conversation) ? data.conversation : [];
+    parsedNoteDraft = null;
+
+    // Repaint thread from conversation
+    const thread = document.getElementById('chatThread');
+    thread.innerHTML = '';
+    appendChatBubble('assistant', "Q here. Picking up where we left off…");
+    chatHistory.forEach(m => {
+      const role = m.role === 'user' ? 'user' : 'assistant';
+      // content may be a string or an array of blocks
+      let text = '';
+      if (typeof m.content === 'string') text = m.content;
+      else if (Array.isArray(m.content)) {
+        text = m.content.filter(b => b.type === 'text').map(b => b.text).join(' ').trim();
+      }
+      if (text) appendChatBubble(role, text);
+    });
+
+    setDoneEnabled(chatHistory.length > 0);
+    await loadDrafts();
+  } catch (err) {
+    alert('Could not resume draft: ' + (err.message || err));
+  }
+}
+
+async function discardDraft(id) {
+  if (!confirm('Discard this unfinished note? This cannot be undone.')) return;
+  const { error } = await sb.from('field_notes')
+    .delete()
+    .eq('id', id)
+    .eq('rep_id', currentUser.id)
+    .eq('status', 'draft');
+  if (error) { alert('Could not discard: ' + error.message); return; }
+  if (id === currentDraftId) currentDraftId = null;
+  await loadDrafts();
 }
 
 function setDoneEnabled(on) {
@@ -1909,6 +2072,11 @@ async function sendToQ({ text, audioBase64, audioMime }) {
       parsedNoteDraft = data.parsed_note;
       // Small pause for the rep to read Q's final line before the modal pops
       setTimeout(() => showConfirmModal(parsedNoteDraft), 600);
+    }
+
+    // Persist the running conversation so an abandoned chat survives a phone close
+    if (hasUserContent) {
+      persistDraft(data.is_done ? data.parsed_note : null);
     }
   } catch (err) {
     hideTyping();
@@ -2073,8 +2241,7 @@ async function finalizeNote() {
     const noteBody = document.getElementById('confirmNoteBody').value.trim();
     const nextAction = document.getElementById('confirmNextAction').value.trim();
 
-    const noteData = {
-      rep_id: currentUser.id,
+    const noteFields = {
       subject_text: subjectText || null,
       subject_type: parsed.subject_type === 'freeform' ? null
                    : parsed.subject_type === 'location' ? 'hospital'
@@ -2085,13 +2252,23 @@ async function finalizeNote() {
       competitor_id:   (parsed.subject_type === 'competitor')   ? (parsed.subject_id || null) : null,
       note_body: noteBody,
       tags: confirmSelectedTags,
-      note_date: new Date().toISOString().split('T')[0],
       next_action: nextAction || null,
-      photo_url: null,
+      status: 'submitted',
     };
 
-    const { error } = await sb.from('field_notes').insert([noteData]);
-    if (error) throw error;
+    if (currentDraftId) {
+      const { error } = await sb.from('field_notes').update(noteFields).eq('id', currentDraftId);
+      if (error) throw error;
+    } else {
+      const { error } = await sb.from('field_notes').insert([{
+        rep_id: currentUser.id,
+        note_date: new Date().toISOString().split('T')[0],
+        photo_url: null,
+        conversation: chatHistory,
+        ...noteFields,
+      }]);
+      if (error) throw error;
+    }
 
     document.getElementById('confirmModal').classList.remove('open');
     const toast = document.getElementById('successToast');
@@ -2102,6 +2279,7 @@ async function finalizeNote() {
     parsedNoteDraft = null;
     initChat();
     loadNotes();
+    loadDrafts();
   } catch (err) {
     alert('Error: ' + (err.message || err));
   } finally {
