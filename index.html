@@ -807,6 +807,7 @@
         <!-- Mode toggle bar -->
         <div class="mode-bar" id="modeBar">
           <div class="mode-bar-q" id="modeBarLabel">Q</div>
+          <button type="button" class="mode-link" id="doneBtn" onclick="forceSubmit()" disabled style="color:var(--green-600);">Done ✓</button>
           <button type="button" class="mode-link" id="modeToggleLink" onclick="toggleMode()">Use form ▸</button>
         </div>
 
@@ -1747,6 +1748,21 @@ function initChat() {
   const thread = document.getElementById('chatThread');
   thread.innerHTML = '';
   appendChatBubble('assistant', "Q here. What've you got?");
+  setDoneEnabled(false);
+}
+
+function setDoneEnabled(on) {
+  const btn = document.getElementById('doneBtn');
+  if (!btn) return;
+  btn.disabled = !on;
+  btn.style.opacity = on ? '1' : '0.4';
+}
+
+async function forceSubmit() {
+  if (chatBusy) return;
+  const btn = document.getElementById('doneBtn');
+  if (btn && btn.disabled) return;
+  await sendToQ({ text: "Submit now. That's it." });
 }
 
 function toggleMode() {
@@ -1859,6 +1875,10 @@ async function sendToQ({ text, audioBase64, audioMime }) {
     }
 
     chatHistory = data.updated_history || chatHistory;
+
+    // Enable Done as soon as the rep has said anything meaningful
+    const hasUserContent = chatHistory.some(m => m.role === 'user' && (typeof m.content === 'string' ? m.content.length > 0 : (Array.isArray(m.content) && m.content.some(b => b.type !== 'tool_result'))));
+    setDoneEnabled(hasUserContent && !data.is_done);
 
     if (data.is_done && data.parsed_note) {
       parsedNoteDraft = data.parsed_note;
