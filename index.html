@@ -908,10 +908,11 @@
             <label class="form-label">Tags (optional)</label>
             <div class="tags-row">
               <span class="tag-chip" data-tag="Surgeon Interaction" onclick="toggleTag(this)">Surgeon Interaction</span>
+              <span class="tag-chip" data-tag="Hospital" onclick="toggleTag(this)">Hospital</span>
+              <span class="tag-chip" data-tag="Competition" onclick="toggleTag(this)">Competition</span>
+              <span class="tag-chip" data-tag="Opportunity" onclick="toggleTag(this)">Opportunity</span>
               <span class="tag-chip" data-tag="Case Feedback" onclick="toggleTag(this)">Case Feedback</span>
-              <span class="tag-chip" data-tag="Competitive Intel" onclick="toggleTag(this)">Competitive Intel</span>
-              <span class="tag-chip" data-tag="Product Interest" onclick="toggleTag(this)">Product Interest</span>
-              <span class="tag-chip" data-tag="Issue / Complaint" onclick="toggleTag(this)">Issue / Complaint</span>
+              <span class="tag-chip" data-tag="Schedule" onclick="toggleTag(this)">Schedule</span>
               <span class="tag-chip" data-tag="Observation" onclick="toggleTag(this)">Observation</span>
             </div>
           </div>
@@ -1810,6 +1811,7 @@ function initChat() {
   chatHistory = [];
   parsedNoteDraft = null;
   currentDraftId = null;
+  pendingChipTag = null;
   const thread = document.getElementById('chatThread');
   thread.innerHTML = '';
   appendChatBubble('assistant', "Q here. What've you got?");
@@ -1817,12 +1819,16 @@ function initChat() {
   setDoneEnabled(false);
 }
 
+let pendingChipTag = null;
+
 const Q_STARTERS = [
-  { label: 'Surgeon call',        seed: "Surgeon visit — let me tell you about it." },
-  { label: 'Hospital visit',      seed: "Hospital visit — let me tell you about it." },
-  { label: 'Competitor sighting', seed: "Saw a competitor in the field — here's what happened." },
-  { label: 'Tray status',         seed: "Update on a tray." },
-  { label: 'Other',               seed: null },
+  { label: 'Surgeon Interaction', tag: 'Surgeon Interaction', question: "Which surgeon, and what came up?" },
+  { label: 'Hospital',            tag: 'Hospital',            question: "Which hospital, and what did you see?" },
+  { label: 'Competition',         tag: 'Competition',         question: "Which competitor, doing what, and where?" },
+  { label: 'Opportunity',         tag: 'Opportunity',         question: "Which surgeon/hospital, and what's the opening?" },
+  { label: 'Case Feedback',       tag: 'Case Feedback',       question: "Which surgeon, what case, and how did it go?" },
+  { label: 'Schedule',            tag: 'Schedule',            question: "Which surgeon, what day, and where?" },
+  { label: 'Other',               tag: null,                  question: null },
 ];
 
 function renderStarterChips() {
@@ -1849,15 +1855,24 @@ function removeStarterChips() {
   if (el) el.remove();
 }
 
-async function pickQStarter(chip) {
+function pickQStarter(chip) {
   if (chatBusy) return;
   removeStarterChips();
-  if (!chip.seed) {
+  if (!chip.question) {
     document.getElementById('chatInput').focus();
     return;
   }
-  appendChatBubble('user', chip.seed);
-  await sendToQ({ text: chip.seed });
+  // Set tag so the eventual submit carries it even if Q forgets
+  pendingChipTag = chip.tag;
+  // Rewrite Q's opening bubble in place
+  const thread = document.getElementById('chatThread');
+  const firstBubble = thread.querySelector('.chat-bubble.assistant');
+  const newText = "Q here. " + chip.question;
+  if (firstBubble) firstBubble.textContent = newText;
+  else appendChatBubble('assistant', newText);
+  // Seed chatHistory so Q sees its own question on the next turn
+  chatHistory = [{ role: 'assistant', content: newText }];
+  document.getElementById('chatInput').focus();
 }
 
 // Persist the active chat to a field_notes row with status='draft'.
@@ -2246,7 +2261,7 @@ function blobToBase64(blob) {
 // ============================================================
 // CONFIRM-AND-EDIT MODAL
 // ============================================================
-const TAG_LIST = ['Surgeon Interaction','Case Feedback','Competitive Intel','Product Interest','Issue / Complaint','Observation'];
+const TAG_LIST = ['Surgeon Interaction','Hospital','Competition','Opportunity','Case Feedback','Schedule','Observation'];
 let confirmSelectedTags = [];
 
 function showConfirmModal(parsed) {
@@ -2260,6 +2275,9 @@ function showConfirmModal(parsed) {
   document.getElementById('confirmNoteBody').value = parsed.note_body || '';
   document.getElementById('confirmNextAction').value = parsed.next_action || '';
   confirmSelectedTags = Array.isArray(parsed.tags) ? parsed.tags.slice() : [];
+  if (pendingChipTag && !confirmSelectedTags.includes(pendingChipTag)) {
+    confirmSelectedTags.unshift(pendingChipTag);
+  }
   renderConfirmTags();
   document.getElementById('confirmModal').classList.add('open');
 }
@@ -2300,6 +2318,10 @@ async function finalizeNote() {
     const noteBody = document.getElementById('confirmNoteBody').value.trim();
     const nextAction = document.getElementById('confirmNextAction').value.trim();
 
+    const mergedTags = Array.from(new Set([
+      ...(Array.isArray(confirmSelectedTags) ? confirmSelectedTags : []),
+      ...(pendingChipTag ? [pendingChipTag] : []),
+    ]));
     const noteFields = {
       subject_text: subjectText || null,
       subject_type: parsed.subject_type === 'freeform' ? null
@@ -2310,7 +2332,7 @@ async function finalizeNote() {
       manufacturer_id: (parsed.subject_type === 'manufacturer') ? (parsed.subject_id || null) : null,
       competitor_id:   (parsed.subject_type === 'competitor')   ? (parsed.subject_id || null) : null,
       note_body: noteBody,
-      tags: confirmSelectedTags,
+      tags: mergedTags,
       next_action: nextAction || null,
       status: 'submitted',
     };
