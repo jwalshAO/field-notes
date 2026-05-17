@@ -3,13 +3,13 @@ title: "Field Notes (was Field Intel Webapp)"
 cockpit: true
 domain: "Field"
 description: "Mobile-first PWA for reps to capture field intelligence via Q (Claude chat). Notes flow into Supabase; the Brain extracts structured facts every 5 minutes, autonomously; facts surface on every CRM entity page (surgeon, hospital, manufacturer, competitor) in the OSO dashboard."
-next_action: "John self-tests V4.0.9 for a few days. When ready for rep rollout: wipe synthetic data (§5), tighten anon RLS, comms to reps. Future: leaderboard, streak counter, Brain v2."
-rollout_target: "V4.0.9 LIVE (7-tag taxonomy + smart starter chips + submission celebrations). Q Edge Function v7 deployed with matching taxonomy. Brain v1 LIVE. OSO entity routes LIVE. John in multi-day self-test before rep rollout."
+next_action: "Build V4.1.0 contacts (full plan locked in §5/§7 — schema, RPC, Q v9, Brain v3, OSO /contact/[id], PWA wire-through, Todoist follow-up). Then resume self-test. Synthetic-data wipe + anon RLS tighten + rep rollout still gated after V4.1.0 ships."
+rollout_target: "V4.0.12 LIVE (new logo + Cancel button + smart chips + 7-tag taxonomy + celebrations). Q Edge Function v8 deployed. Brain v1 LIVE. OSO entity routes LIVE. V4.1.0 (contacts) is the next ship and fully scoped — start there next session."
 build_machine: "Either — repo on GitHub, Vercel auto-deploys on push. Supabase MCP handles all backend work."
 ---
 
 # Field Notes — Living Project Document
-Last updated: 2026-05-17 | Session #8 (V4.0.9: 7-tag taxonomy rebuild + smart chips that rewrite Q's opening question and pre-select the matching tag; confetti/count celebrations; John starts multi-day self-test before rep rollout)
+Last updated: 2026-05-17 | Session #8 (V4.0.9 → V4.0.12: tag taxonomy rebuild → Interaction/Feedback broadening → Cancel button + no-keyboard-on-chip-tap → new pink/blue Q logo replacing orange icon. V4.1.0 contacts fully scoped, build deferred to next session.)
 
 ---
 
@@ -24,16 +24,19 @@ Last updated: 2026-05-17 | Session #8 (V4.0.9: 7-tag taxonomy rebuild + smart ch
 ---
 
 ## 2. Current Status
-**Full capture → brain → surfacing pipeline LIVE.** V4.0.8 (Field Notes PWA) + Brain v1 + OSO Brain Facts panels on `/surgeon`, `/hospital`, `/manufacturer`, `/competitor`. V4.0.8 adds two adoption features: starter chips on the empty chat (Surgeon call / Hospital visit / Competitor sighting / Tray status / Other) so reps aren't staring at a blank screen, and confetti + per-rep count toast on submit (1st note + every 5th). John is entering multi-day personal testing before rolling out. No infra blockers for rep rollout — gate is now just synthetic-data wipe + anon RLS tighten + comms.
+**Full capture → brain → surfacing pipeline LIVE.** V4.0.12 (Field Notes PWA) + Brain v1 + OSO Brain Facts panels on `/surgeon`, `/hospital`, `/manufacturer`, `/competitor`. Session 8 polished the rep-facing layer: 7-tag taxonomy (Interaction / Hospital / Competition / Opportunity / Feedback / Schedule / Observation), smart starter chips that rewrite Q's opening question and pre-select the matching tag, Cancel button for misclicks, no auto-keyboard after chip tap (so Q's tailored question is readable), confetti/count celebrations, and a new pink-and-blue Q logo replacing the orange notebook icon. **V4.1.0 (contacts) is fully scoped but not built** — that's the next ship. John is in multi-day self-test on V4.0.12. Rep rollout still gated on V4.1.0 + synthetic-data wipe + anon RLS tighten + comms.
 
 ---
 
 ## 3. What Exists (Artifacts & Files)
 
 ### Field Notes PWA (`jwalshAO/field-notes` → Vercel)
-- `index.html` — V4.0.9: chat with Q + form fallback + confirm-and-edit + Done + Unfinished N drafts banner with Resume/Discard + smart starter chips (rewrite Q's question + preset tag) + confetti/count celebrations
-- `manifest.json` — short_name `Field Notes`
-- `sw.js` — cache `field-intel-v4-9`
+- `index.html` — V4.0.12: chat with Q + form fallback + confirm-and-edit + Done + Cancel + Unfinished N drafts banner with Resume/Discard + smart starter chips (rewrite Q's question + preset tag, no auto-keyboard) + confetti/count celebrations + new logo references
+- `manifest.json` — short_name `Field Notes`, icons reference `icon-192.png` and `icon-512.png`
+- `sw.js` — cache `field-intel-v4-12`
+- `icon-192.png` / `icon-512.png` / `apple-touch-icon.png` / `icon-source-1024.png` — new pink notebook page with blue Q badge (replaces old orange notebook)
+- `favicon-16.png` / `favicon-32.png` — desktop tab favicons (newly added in V4.0.12)
+- `icons/` — full source set (android-chrome, apple-touch-icon at 60/76/120/152/167/180, favicon, 1024 master, SVG)
 - `icon-192.png` / `icon-512.png` / `apple-touch-icon.png` — orange notebook+pen, edge-to-edge (no whitespace, no built-in corners — iOS rounds on add-to-home-screen)
 - `icon-source-1024.png` — archived master
 
@@ -48,12 +51,15 @@ Last updated: 2026-05-17 | Session #8 (V4.0.9: 7-tag taxonomy rebuild + smart ch
 ### Supabase (`oso-tray-tracker` / `pchhtltxdcmvdcwnwaeg`)
 
 **Tables**
-- `field_notes` — main capture. Columns: `status` (`draft`/`submitted`/`deleted`), `conversation` JSONB (Q transcript), `draft_updated_at`, `brain_processed_at`, `is_test`, `deleted_at`/`deleted_by_rep_id`, plus FKs to surgeon/location/manufacturer/competitor
-- `derived_facts` — Brain output. 8 `fact_kind` values, multi-entity anchoring, `confidence`, `observation_date`, `source_field_note_id`, `source_kind` (future-proof for orders/emails), `superseded_by`, `is_test`
+- `field_notes` — main capture. Columns: `status` (`draft`/`submitted`/`deleted`), `conversation` JSONB (Q transcript), `draft_updated_at`, `brain_processed_at`, `is_test`, `deleted_at`/`deleted_by_rep_id`, plus FKs to surgeon/location/manufacturer/competitor. **V4.1.0 will add `contact_id` FK.**
+- `derived_facts` — Brain output. 8 `fact_kind` values, multi-entity anchoring, `confidence`, `observation_date`, `source_field_note_id`, `source_kind` (future-proof for orders/emails), `superseded_by`, `is_test`. **V4.1.0 will add `contact_id` anchor.**
+- `manufacturers` — partner manufacturers (SD, Orthocell, Virak, TYBR, Enovis/DJO, Simparo, Captiox, Insight). Contract-heavy schema (commission_rate, contract_start/end, po_email, etc.). Confirmed intentionally separate from `competitors` (lean: name/category/notes/active) — not folding into a single table with `is_partner`.
+- **V4.1.0 will add `contacts`** — non-surgeon CRM people: materials managers, OR staff, schedulers, hospital admin, manufacturer reps. Schema: `id, name, role, location_id, status (needs_review/active/inactive), notes, created_at, created_via_field_note_id`. Q auto-creates rows on the fly when reps mention names not in any existing table.
 
 **Edge Functions**
-- `field-notes-chat` v3 — Q chat (Whisper + Claude Haiku 4.5 + tool use)
-- `field-notes-process` v2 — Brain. `{note_id: N}` single or `{limit: N}` sweep. Catalog-aware (loads manufacturer/competitor lists). Service-role writes to `derived_facts` + `brain_processed_at`.
+- `field-notes-chat` v8 — Q chat (Whisper + Claude Haiku 4.5 + tool use). System prompt includes the 7-tag taxonomy with renamed Interaction/Feedback (broader). Tool enum on `submit_note.tags` matches. **V4.1.0 will be v9** — adds contact lookup, `create_contact` tool, Todoist POST.
+- `field-notes-process` v2 — Brain. `{note_id: N}` single or `{limit: N}` sweep. Catalog-aware (loads manufacturer/competitor lists). Service-role writes to `derived_facts` + `brain_processed_at`. **V4.1.0 will be v3** — anchors facts to `contact_id` when present.
+- `neo-mobile-chat` v17 — separate Neo Mobile app (uses same Supabase project). Already integrates with Todoist via `TODOIST_API_TOKEN` Deno env var. Confirms the token is set as a Supabase secret — Field Notes V4.1.0 will reference the same env var. Todoist endpoint: `api.todoist.com/api/v1/tasks` (no project_id = Inbox).
 
 **RPCs:** `fn_lookup_entity`, `fn_surgeons_at_location`, `fn_recent_notes_about` (SECURITY DEFINER)
 **Extensions:** `pg_trgm`, `fuzzystrmatch`, `pg_cron`, `pg_net`
@@ -74,15 +80,42 @@ Last updated: 2026-05-17 | Session #8 (V4.0.9: 7-tag taxonomy rebuild + smart ch
 - **Deploy workflow** — GitHub → Vercel auto-deploys on push. `git push origin main`.
 - **Starter chips, not free text only** — empty chat needs a nudge; chips give reps a button to tap, also seed Q with note_type context.
 - **Smart chips (Option A behavior)** — tapping a chip rewrites Q's opening question to a tailored one for that note type AND pre-selects the matching tag for submission. No extra Anthropic round-trip. (Other = focus input only, no tag.)
-- **Tag taxonomy v2 (7 tags)** — Surgeon Interaction, Hospital, Competition, Opportunity, Case Feedback, Schedule, Observation. Replaced "Case Feedback / Competitive Intel / Product Interest / Issue-Complaint / Observation" set. Hospital + Schedule are new; Schedule pairs directly with the Brain's `schedule_observation` fact_kind to feed the future Surgeon Calendar skill. Issue/Complaint dropped — overlaps with Observation + `next_action` already covers action-tracking.
+- **No auto-focus after question-chip tap** — would pop the keyboard and hide Q's tailored question on iOS. "Other" still focuses since there's no question to read.
+- **Cancel button next to Done** — visible the moment a chip is tapped / message sent / mic hit / draft resumed. Confirms only if rep has typed user content. Deletes the persisted draft row if one exists.
+- **Tag taxonomy v3 (7 tags)** — **Interaction, Hospital, Competition, Opportunity, Feedback, Schedule, Observation.** Broadened from v2 (Session 8 evolution): Surgeon Interaction → Interaction (covers Jeanie at Methodist, materials managers, OR staff, schedulers, manufacturer reps); Case Feedback → Feedback (broader than OR cases — product, training, billing, service feedback all fit). Tag describes the *kind* of intel; subject_text captures *who*. Hospital + Schedule remain new vs. the original taxonomy; Schedule pairs with Brain's `schedule_observation` fact_kind to feed Surgeon Calendar.
+- **Tag distinction: Feedback vs Observation** — Feedback was SAID by someone; Observation is something the rep noticed.
+- **Contacts are first-class (V4.1.0)** — non-surgeon recurring people (Jeanie at Methodist, materials managers, etc.) get a `contacts` table so the Brain can anchor facts to them, OSO can show a contact page, and `recent_notes_about` works per-person. Q auto-creates with `status='needs_review'` + Todoist follow-up task — zero capture-time friction.
 - **Celebrate every 5th note, big burst on 25/50** — adoption mechanic borrowed from Todoist. canvas-confetti (~5KB), client-side count query filters out `is_test`.
+- **Logo is pink notebook page with blue Q badge** (V4.0.12). Replaced the orange notebook+pen from V4.0.7. Source files in `icons/` folder (PNG sizes 16 → 1024 + SVG master). Reps need to delete + re-add the home-screen icon to pick up the new icon on iOS.
 
 ---
 
 ## 5. Active Work Items
 
+**NEXT SHIP — V4.1.0 contacts (fully scoped, ready to build):**
+
+The flow John wants:
+1. Rep mentions someone like "Jeanne at Methodist" (or "Jeanie at Meth" — voice transcription fuzz)
+2. Q calls `fn_lookup_entity` which now also searches `contacts` via trigram match
+3. **High soft hit (one match, conf ≥ 0.7)** → Q confirms once: *"Jeanie at Methodist — is that her?"*
+4. **Multiple soft hits** → Q lists them: *"Did you mean Jeanie or Jeannette? Or new contact?"*
+5. **No match OR rep rejects all** → Q silently creates a contact row (`status='needs_review'`, location anchored), POSTs a Todoist task to John's Inbox with a link to the new contact page, and continues capture with `contact_id` linked
+6. Brain reads field_note, sees `contact_id`, anchors facts to her
+7. Todoist task description includes: `https://surgeon-dashboard-zeta.vercel.app/contact/{id}` so John can tap to review/complete the name+role
+
+Build order (next session, V4.1.0):
+- [ ] **Schema migration** — `CREATE TABLE contacts(...)`, `ALTER TABLE field_notes ADD COLUMN contact_id BIGINT REFERENCES contacts(id)`, same for `derived_facts`. Additive only, zero risk to existing data.
+- [ ] **RPC update** — extend `fn_lookup_entity` to also search contacts (add `'contact'` to the kinds enum). Trigram match on `name`, optionally boosted when location_id matches the rep's current context.
+- [ ] **OSO `/contact/[id]` route** — reuses existing `EntityFactsPanel` component; minimal new code. Add a "Known Contacts" section to `app/hospital/[id]/page.tsx` listing contacts at that location.
+- [ ] **Q Edge Function v9** — system prompt teaches the soft-hit confirmation flow; new `create_contact` tool (service-role insert); after create, POST to Todoist; `submit_note` tool gains optional `contact_id`.
+- [ ] **Brain Edge Function v3** — load anchored contact alongside surgeon/location; allow `contact_id` in `record_fact` (sanitize against the note's anchored contact_id).
+- [ ] **Field Notes PWA** — thread `contact_id` through `persistDraft`, `resumeDraft`, `showConfirmModal`, `finalizeNote`. No new UI needed in chat mode (Q handles it); form mode might want a contact autocomplete later but not required for V4.1.0.
+- [ ] **Project doc update** to "V4.1.0 LIVE" once tested.
+
+Token source confirmed: `TODOIST_API_TOKEN` already set as Supabase secret (used by `neo-mobile-chat` v17). Reference via `Deno.env.get("TODOIST_API_TOKEN")`. Tasks go to Todoist Inbox (no project_id specified). Endpoint: `POST https://api.todoist.com/api/v1/tasks` with `Authorization: Bearer ${token}` and JSON body `{content, description, due_string?}`.
+
 **Active — multi-day self-test (started 2026-05-17):**
-- [ ] John tests V4.0.8 personally for a few days. Watching for: Q entity-match accuracy, fact usefulness on entity pages, draft-resume behavior after phone close, missing/over-firing fact_kinds.
+- [ ] John tests V4.0.12 personally for a few days. Watching for: Q entity-match accuracy, fact usefulness on entity pages, draft-resume behavior after phone close, missing/over-firing fact_kinds, chip→question UX, Cancel button behavior. Ideally test the new logo on home screen (delete + re-add icon to force iOS refresh).
 
 **Before rep rollout (in priority order):**
 - [ ] **Synthetic-data wipe** — `DELETE FROM derived_facts; DELETE FROM field_notes WHERE is_test = true; UPDATE field_notes SET brain_processed_at = NULL;` Then let the cron re-process real notes.
@@ -90,13 +123,14 @@ Last updated: 2026-05-17 | Session #8 (V4.0.9: 7-tag taxonomy rebuild + smart ch
 - [ ] **`npm install`** at `/Users/johnwalsh/Codex/AO/Projects/surgeon-dashboard` — local node_modules broken; needed before next local `next dev`.
 - [ ] **Rep rollout comms** — already-installed reps must delete the home-screen icon and re-add it to pick up V4.0.8 + new orange icon (iOS caches launch icon).
 
-**Future scope (deferred from V4.0.8 build):**
+**Future scope (deferred):**
 - [ ] **Per-rep streak counter** — daily streak indicator near the John dropdown in the header. Data is there, just needs the UI + a last-submitted-date query.
 - [ ] **Admin leaderboard** — view of rep counts/streaks on the OSO dashboard side, John-only. Pairs with celebrations.
 - [ ] **Brain v2 — cross-entity synthesis** — scheduled job that reads `derived_facts` and emits higher-order observations (schedule patterns, conversion likelihood, complication trends). Also writes summaries to Interaction Log sections of CRM markdown pages on the Mac Mini.
 - [ ] **Surgeon Calendar skill** — predictive "where will Bozentka be Thursday" from `schedule_observation` facts + order ship-to data + calendar invites. Separate project, consumes Brain output.
 - [ ] **Fact supersession logic** — schema has `superseded_by` column but Brain v1 doesn't use it. Brain v2 will need a rule.
-- [ ] **Markdown sync** — Brain v2 writes summaries back into Surgeon/Hospital/Manufacturer `.md` Interaction Log sections via scheduled task on Mac Mini.
+- [ ] **Markdown sync** — Brain v2 writes summaries back into Surgeon/Hospital/Manufacturer/Contact `.md` Interaction Log sections via scheduled task on Mac Mini.
+- [ ] **Contact autocomplete in form mode** — V4.1.0 ships chat-mode contact handling only. If reps want a contact subject picker in the V3 form fallback, add later.
 
 **Useful queries**
 - Brain backlog: `SELECT count(*) FROM field_notes WHERE status='submitted' AND brain_processed_at IS NULL;`
@@ -138,14 +172,18 @@ Last updated: 2026-05-17 | Session #8 (V4.0.9: 7-tag taxonomy rebuild + smart ch
 - 2026-05-06 — Session 4: V4 conversational capture defined; Q persona introduced; sequencing locked
 - 2026-05-15 — Session 5: Whisper locked; chat-as-interface; cost model
 - 2026-05-16 — Session 6: V4.0 shipped — RPCs, Edge Function, chat UI, fuzzy match, Whisper priming, V4.0→V4.0.3 iterations
-- 2026-05-17 — Session 8: **V4.0.9 — adoption polish + tag rebuild before rep rollout.**
-  - Starter chips on empty chat. **Option A behavior**: tapping a chip rewrites Q's opening bubble to a tailored question (e.g., Schedule → "Q here. Which surgeon, what day, and where?") AND pre-selects the matching tag for submission. No extra Anthropic round-trip per chip tap. Chips dismiss on tap, type, or mic.
-  - canvas-confetti (~5KB CDN) + per-rep count toast on submit. Milestones: 1st note, every 5th (medium burst), every 25/50 (big burst). Filters `is_test` from count.
-  - Tag taxonomy rebuilt 6 → 7: Surgeon Interaction, Hospital, Competition, Opportunity, Case Feedback, Schedule, Observation. Q Edge Function v7 deployed with matching enum + system prompt. Old tags dropped: Case Feedback (kept), Competitive Intel → Competition, Product Interest → Opportunity, Issue/Complaint dropped (overlap with Observation + `next_action`).
-  - SW cache bumped v4-7 → v4-9.
+- 2026-05-17 — Session 8: **V4.0.9 → V4.0.12 — adoption polish, tag rebuild, contacts scoped, new logo.**
+  - **V4.0.8** (early session): canvas-confetti (~5KB CDN) + per-rep count toast on submit. Milestones: 1st note, every 5th, big burst on 25/50. Filters `is_test`. Starter chips on empty chat (v1 — generic seed messages, "Option B behavior").
+  - **V4.0.9**: Tag taxonomy v2 (7 tags) — Surgeon Interaction, Hospital, Competition, Opportunity, Case Feedback, Schedule, Observation. Smart chips switched to **Option A behavior**: tapping a chip rewrites Q's opening bubble to a tailored question AND pre-selects the matching tag for submission. No extra Anthropic round-trip. `pendingChipTag` survives Q forgetting. Q Edge Function v7 deployed.
+  - **V4.0.10**: Cancel button next to Done (visible after chip/type/mic/resume; confirms if user content; deletes draft row). No auto-focus after question-providing chip tap so keyboard doesn't hide Q's question.
+  - **V4.0.11**: Tag taxonomy v3 (broader names) — **Surgeon Interaction → Interaction** (covers Jeanie at Methodist, materials managers, OR staff, schedulers, manufacturer reps); **Case Feedback → Feedback** (broader than OR cases — product, training, billing). Q Edge Function v8 deployed; system prompt clarifies non-surgeon subjects are valid freeform.
+  - **V4.0.12**: New logo — **pink notebook page with blue Q badge** (replaces orange notebook+pen). Replaced `icon-192`, `icon-512`, `apple-touch-icon`, `icon-source-1024`. Added `favicon-16`/`favicon-32` with HTML head links. Full source set committed under `icons/` (android-chrome, apple-touch sizes 60→180, favicon, 1024 master, SVG).
+  - **V4.1.0 fully scoped, build deferred**: Contacts table + `field_notes.contact_id` + `derived_facts.contact_id` + RPC extension + Q v9 (soft-hit confirm flow, `create_contact` tool, Todoist POST) + Brain v3 + OSO `/contact/[id]` route + Hospital page contacts section + PWA wire-through. `TODOIST_API_TOKEN` already set as Supabase secret (confirmed via `neo-mobile-chat` v17). See §5 for the full plan.
   - Schema discussion: confirmed `manufacturers` (partners, contract-heavy) and `competitors` (lean) are intentionally separate tables — not folding into one with `is_partner`.
-  - Decision: leaderboard and streak counter deferred — start with confetti + count only.
-  - John begins multi-day self-test before rep rollout.
+  - Decisions deferred: leaderboard, streak counter, Brain v2, Surgeon Calendar skill, fact supersession logic.
+  - SW cache progression: v4-7 → v4-8 → v4-9 → v4-10 → v4-11 → v4-12.
+  - Edge Function progression: field-notes-chat v6 → v7 → v8.
+  - **Quick-start for next session**: `"continue Field Notes webapp"` — and the next step is to build V4.1.0 contacts as scoped.
 - 2026-05-16 — Session 7: **Capture + Brain + Surfacing all LIVE.**
   - V4.0.4: `is_test` flag added; feed filters it out
   - V4.0.5: `status` lifecycle + `conversation` JSONB + `draft_updated_at`; drafts banner with Resume/Discard; Submit UPDATEs draft row
