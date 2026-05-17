@@ -918,11 +918,11 @@
           <div class="form-group">
             <label class="form-label">Tags (optional)</label>
             <div class="tags-row">
-              <span class="tag-chip" data-tag="Surgeon Interaction" onclick="toggleTag(this)">Surgeon Interaction</span>
+              <span class="tag-chip" data-tag="Interaction" onclick="toggleTag(this)">Interaction</span>
               <span class="tag-chip" data-tag="Hospital" onclick="toggleTag(this)">Hospital</span>
               <span class="tag-chip" data-tag="Competition" onclick="toggleTag(this)">Competition</span>
               <span class="tag-chip" data-tag="Opportunity" onclick="toggleTag(this)">Opportunity</span>
-              <span class="tag-chip" data-tag="Case Feedback" onclick="toggleTag(this)">Case Feedback</span>
+              <span class="tag-chip" data-tag="Feedback" onclick="toggleTag(this)">Feedback</span>
               <span class="tag-chip" data-tag="Schedule" onclick="toggleTag(this)">Schedule</span>
               <span class="tag-chip" data-tag="Observation" onclick="toggleTag(this)">Observation</span>
             </div>
@@ -1834,13 +1834,13 @@ function initChat() {
 let pendingChipTag = null;
 
 const Q_STARTERS = [
-  { label: 'Surgeon Interaction', tag: 'Surgeon Interaction', question: "Which surgeon, and what came up?" },
-  { label: 'Hospital',            tag: 'Hospital',            question: "Which hospital, and what did you see?" },
-  { label: 'Competition',         tag: 'Competition',         question: "Which competitor, doing what, and where?" },
-  { label: 'Opportunity',         tag: 'Opportunity',         question: "Which surgeon/hospital, and what's the opening?" },
-  { label: 'Case Feedback',       tag: 'Case Feedback',       question: "Which surgeon, what case, and how did it go?" },
-  { label: 'Schedule',            tag: 'Schedule',            question: "Which surgeon, what day, and where?" },
-  { label: 'Other',               tag: null,                  question: null },
+  { label: 'Interaction',  tag: 'Interaction',  question: "Who, where, and what came up?" },
+  { label: 'Hospital',     tag: 'Hospital',     question: "Which hospital, and what did you see?" },
+  { label: 'Competition',  tag: 'Competition',  question: "Which competitor, doing what, and where?" },
+  { label: 'Opportunity',  tag: 'Opportunity',  question: "Which surgeon/hospital, and what's the opening?" },
+  { label: 'Feedback',     tag: 'Feedback',     question: "Feedback from who, and on what?" },
+  { label: 'Schedule',     tag: 'Schedule',     question: "Which surgeon, what day, and where?" },
+  { label: 'Other',        tag: null,           question: null },
 ];
 
 function renderStarterChips() {
@@ -2304,7 +2304,7 @@ function blobToBase64(blob) {
 // ============================================================
 // CONFIRM-AND-EDIT MODAL
 // ============================================================
-const TAG_LIST = ['Surgeon Interaction','Hospital','Competition','Opportunity','Case Feedback','Schedule','Observation'];
+const TAG_LIST = ['Interaction','Hospital','Competition','Opportunity','Feedback','Schedule','Observation'];
 let confirmSelectedTags = [];
 
 function showConfirmModal(parsed) {
