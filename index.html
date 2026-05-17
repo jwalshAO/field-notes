@@ -692,10 +692,20 @@
       margin-bottom: 12px;
     }
     .done-row {
-      display: flex; justify-content: center;
+      display: flex; justify-content: center; gap: 12px;
       margin-top: 12px;
       padding-bottom: env(safe-area-inset-bottom, 0);
     }
+    .cancel-btn {
+      background: transparent; color: var(--gray-500);
+      border: 1px solid var(--gray-300);
+      padding: 12px 22px; border-radius: 24px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s;
+    }
+    .cancel-btn:active { background: var(--gray-100); }
     .done-btn {
       background: var(--green-100); color: var(--green-600);
       border: 1.5px solid var(--green-600);
@@ -881,6 +891,7 @@
             </button>
           </div>
           <div class="done-row">
+            <button type="button" id="cancelBtn" class="cancel-btn" onclick="cancelChat()" style="display:none;">Cancel</button>
             <button type="button" id="doneBtn" class="done-btn" onclick="forceSubmit()" disabled>Done ✓</button>
           </div>
         </div>
@@ -1817,6 +1828,7 @@ function initChat() {
   appendChatBubble('assistant', "Q here. What've you got?");
   renderStarterChips();
   setDoneEnabled(false);
+  setCancelVisible(false);
 }
 
 let pendingChipTag = null;
@@ -1858,7 +1870,9 @@ function removeStarterChips() {
 function pickQStarter(chip) {
   if (chatBusy) return;
   removeStarterChips();
+  setCancelVisible(true);
   if (!chip.question) {
+    // "Other" — focus input so the rep can type freely
     document.getElementById('chatInput').focus();
     return;
   }
@@ -1872,7 +1886,7 @@ function pickQStarter(chip) {
   else appendChatBubble('assistant', newText);
   // Seed chatHistory so Q sees its own question on the next turn
   chatHistory = [{ role: 'assistant', content: newText }];
-  document.getElementById('chatInput').focus();
+  // Do NOT auto-focus — keyboard would hide Q's question. Rep can tap mic or input.
 }
 
 // Persist the active chat to a field_notes row with status='draft'.
@@ -1993,6 +2007,7 @@ async function resumeDraft(id) {
     });
 
     setDoneEnabled(chatHistory.length > 0);
+    setCancelVisible(true);
     await loadDrafts();
   } catch (err) {
     alert('Could not resume draft: ' + (err.message || err));
@@ -2016,6 +2031,32 @@ function setDoneEnabled(on) {
   if (!btn) return;
   btn.disabled = !on;
   btn.style.opacity = on ? '1' : '0.4';
+}
+
+function setCancelVisible(on) {
+  const btn = document.getElementById('cancelBtn');
+  if (!btn) return;
+  btn.style.display = on ? '' : 'none';
+}
+
+async function cancelChat() {
+  if (chatBusy) return;
+  const hasUserContent = chatHistory.some(m => m.role === 'user');
+  if (hasUserContent && !confirm('Cancel this note? Anything you\'ve typed will be discarded.')) return;
+  // Drop the draft row if one was persisted
+  if (currentDraftId) {
+    try {
+      await sb.from('field_notes')
+        .delete()
+        .eq('id', currentDraftId)
+        .eq('rep_id', currentUser.id)
+        .eq('status', 'draft');
+    } catch (err) {
+      console.warn('cancelChat: draft delete failed', err);
+    }
+  }
+  initChat();
+  await loadDrafts();
 }
 
 async function forceSubmit() {
@@ -2087,6 +2128,7 @@ async function sendText() {
   if (!text) return;
   input.value = '';
   removeStarterChips();
+  setCancelVisible(true);
   appendChatBubble('user', text);
   await sendToQ({ text });
 }
@@ -2183,6 +2225,7 @@ async function toggleRecording() {
   }
 
   removeStarterChips();
+  setCancelVisible(true);
   try {
     recordStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     recordMime = pickAudioMime();
