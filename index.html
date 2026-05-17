@@ -13,6 +13,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" defer></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -729,6 +730,19 @@
       align-self: center; background: transparent; color: var(--gray-400);
       font-size: 11px; font-style: italic; padding: 4px 0;
     }
+    .q-chips {
+      align-self: flex-start; display: flex; flex-wrap: wrap; gap: 8px;
+      margin: 4px 0 8px 0; max-width: 95%;
+    }
+    .q-chip {
+      background: var(--blue-50); color: var(--blue-700);
+      border: 1px solid var(--blue-100);
+      padding: 8px 14px; border-radius: 18px;
+      font-size: 14px; font-weight: 500;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: background 0.12s, transform 0.08s;
+    }
+    .q-chip:active { background: var(--blue-100); transform: scale(0.97); }
     .chat-typing {
       align-self: flex-start; display: inline-flex; gap: 4px;
       padding: 14px 14px; background: var(--gray-100); border-radius: 16px;
@@ -1505,10 +1519,8 @@ async function submitNote(e) {
       return;
     }
 
-    // Show success
-    const toast = document.getElementById('successToast');
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2500);
+    // Show success + celebrate
+    celebrateSubmission();
 
     // Reset form
     document.getElementById('noteForm').reset();
@@ -1801,7 +1813,51 @@ function initChat() {
   const thread = document.getElementById('chatThread');
   thread.innerHTML = '';
   appendChatBubble('assistant', "Q here. What've you got?");
+  renderStarterChips();
   setDoneEnabled(false);
+}
+
+const Q_STARTERS = [
+  { label: 'Surgeon call',        seed: "Surgeon visit — let me tell you about it." },
+  { label: 'Hospital visit',      seed: "Hospital visit — let me tell you about it." },
+  { label: 'Competitor sighting', seed: "Saw a competitor in the field — here's what happened." },
+  { label: 'Tray status',         seed: "Update on a tray." },
+  { label: 'Other',               seed: null },
+];
+
+function renderStarterChips() {
+  const thread = document.getElementById('chatThread');
+  if (!thread) return;
+  if (document.getElementById('qStarterChips')) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'q-chips';
+  wrap.id = 'qStarterChips';
+  Q_STARTERS.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'q-chip';
+    b.textContent = c.label;
+    b.onclick = () => pickQStarter(c);
+    wrap.appendChild(b);
+  });
+  thread.appendChild(wrap);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function removeStarterChips() {
+  const el = document.getElementById('qStarterChips');
+  if (el) el.remove();
+}
+
+async function pickQStarter(chip) {
+  if (chatBusy) return;
+  removeStarterChips();
+  if (!chip.seed) {
+    document.getElementById('chatInput').focus();
+    return;
+  }
+  appendChatBubble('user', chip.seed);
+  await sendToQ({ text: chip.seed });
 }
 
 // Persist the active chat to a field_notes row with status='draft'.
@@ -1909,6 +1965,7 @@ async function resumeDraft(id) {
     const thread = document.getElementById('chatThread');
     thread.innerHTML = '';
     appendChatBubble('assistant', "Q here. Picking up where we left off…");
+    removeStarterChips();
     chatHistory.forEach(m => {
       const role = m.role === 'user' ? 'user' : 'assistant';
       // content may be a string or an array of blocks
@@ -2014,6 +2071,7 @@ async function sendText() {
   const text = input.value.trim();
   if (!text) return;
   input.value = '';
+  removeStarterChips();
   appendChatBubble('user', text);
   await sendToQ({ text });
 }
@@ -2109,6 +2167,7 @@ async function toggleRecording() {
     return;
   }
 
+  removeStarterChips();
   try {
     recordStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     recordMime = pickAudioMime();
@@ -2271,9 +2330,7 @@ async function finalizeNote() {
     }
 
     document.getElementById('confirmModal').classList.remove('open');
-    const toast = document.getElementById('successToast');
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2500);
+    celebrateSubmission();
 
     // Reset chat for the next note
     parsedNoteDraft = null;
@@ -2286,6 +2343,54 @@ async function finalizeNote() {
     btn.disabled = false;
     btn.textContent = 'Submit';
   }
+}
+
+// ============================================================
+// CELEBRATION (confetti + count on submit)
+// ============================================================
+async function celebrateSubmission() {
+  try {
+    const { count, error } = await sb.from('field_notes')
+      .select('id', { count: 'exact', head: true })
+      .eq('rep_id', currentUser.id)
+      .eq('status', 'submitted')
+      .or('is_test.is.null,is_test.eq.false');
+    if (error) throw error;
+    const n = count || 0;
+
+    const toast = document.getElementById('successToast');
+    let msg = `Note saved — ${n} total`;
+    if (n === 1) msg = "First note on the board.";
+    else if (n % 50 === 0) msg = `${n} notes. Legendary.`;
+    else if (n % 25 === 0) msg = `${n} notes — that's serious intel.`;
+    else if (n % 10 === 0) msg = `${n} notes — keep them coming.`;
+    else if (n % 5 === 0)  msg = `${n} notes saved. Nice run.`;
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2800);
+
+    const milestone = (n === 1) || (n > 0 && n % 5 === 0);
+    if (milestone && typeof confetti === 'function') {
+      fireConfetti(n);
+    }
+  } catch (err) {
+    console.warn('celebrateSubmission failed:', err);
+  }
+}
+
+function fireConfetti(n) {
+  const big = n === 1 || n % 25 === 0;
+  const count = big ? 160 : 90;
+  const colors = ['#f97316', '#fb923c', '#2563eb', '#3b82f6', '#16a34a'];
+  confetti({
+    particleCount: count,
+    spread: big ? 90 : 70,
+    startVelocity: big ? 55 : 45,
+    origin: { y: 0.7 },
+    colors,
+    scalar: big ? 1.1 : 0.95,
+    disableForReducedMotion: true,
+  });
 }
 
 // ============================================================
