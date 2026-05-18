@@ -876,7 +876,10 @@
         <!-- Mode toggle bar -->
         <div class="mode-bar" id="modeBar">
           <div class="mode-bar-q" id="modeBarLabel">Q</div>
-          <button type="button" class="mode-link" id="modeToggleLink" onclick="toggleMode()">Use form ▸</button>
+          <div style="margin-left:auto;display:flex;gap:14px;align-items:center;">
+            <button type="button" class="mode-link" id="newNoteLink" onclick="startNewNote()" style="background:none;border:none;color:#2563eb;font-size:13px;cursor:pointer;padding:0;">↻ New</button>
+            <button type="button" class="mode-link" id="modeToggleLink" onclick="toggleMode()">Use form ▸</button>
+          </div>
         </div>
 
         <!-- V4 Chat mode (default) -->
@@ -2068,6 +2071,28 @@ async function forceSubmit() {
   await sendToQ({ text: "Submit now. That's it." });
 }
 
+// Manual escape hatch — always-available "↻ New" link in the chat header.
+// Confirms only if the rep has typed user content in the current chat.
+async function startNewNote() {
+  if (chatBusy) return;
+  const hasUserContent = chatHistory.some(m => m.role === 'user');
+  if (hasUserContent && !confirm('Start a fresh note? Anything in this chat will be cleared (already-submitted notes stay submitted).')) return;
+  // If there's a still-draft row, drop it so we don't leak orphan drafts
+  if (currentDraftId) {
+    try {
+      await sb.from('field_notes')
+        .delete()
+        .eq('id', currentDraftId)
+        .eq('rep_id', currentUser.id)
+        .eq('status', 'draft');
+    } catch (err) {
+      console.warn('startNewNote: draft delete failed', err);
+    }
+  }
+  initChat();
+  await loadDrafts();
+}
+
 function toggleMode() {
   const chat = document.getElementById('chatMode');
   const form = document.getElementById('noteForm');
@@ -2194,6 +2219,20 @@ async function sendToQ({ text, audioBase64, audioMime }) {
     // Persist the running conversation so an abandoned chat survives a phone close
     if (hasUserContent) {
       persistDraft(data.is_done ? data.parsed_note : null);
+    }
+
+    // V4.0.13 — detect "stuck submitted" loop and auto-reset.
+    // If Q's reply indicates the note is already submitted (rep tapped Done after
+    // a successful submit, or kept typing after submission), the chat is in a dead
+    // state — Q can only keep reassuring. Reset to a fresh empty chat so the rep
+    // can start the next note.
+    const msg = (data.assistant_message || '').toLowerCase();
+    const terminalPhrases = ['already submitted', 'already confirmed', 'nothing more to do'];
+    if (terminalPhrases.some(p => msg.includes(p))) {
+      setTimeout(() => {
+        appendChatSystem('— Starting a fresh note —');
+        setTimeout(() => initChat(), 900);
+      }, 1500);
     }
   } catch (err) {
     hideTyping();
