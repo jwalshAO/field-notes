@@ -1570,7 +1570,7 @@ async function loadNotes() {
   }
 
   let query = sb.from('field_notes')
-    .select('*, reps(name, role, territory_id), surgeons(first_name, last_name, credential, primary_hospital), locations(name, city, state), manufacturers(name), competitors(name)')
+    .select('*, reps!field_notes_rep_id_fkey(name, role, territory_id), surgeons(first_name, last_name, credential, primary_hospital), locations(name, city, state), manufacturers(name), competitors(name)')
     .eq('is_test', false)
     .in('status', ['submitted', 'deleted'])
     .order('note_date', { ascending: false })
