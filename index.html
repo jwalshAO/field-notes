@@ -959,11 +959,12 @@
       <div id="screen-feed" class="screen">
         <div class="filter-bar">
           <span class="filter-chip active" data-filter="all" onclick="filterNotes('all', this)">All</span>
-          <span class="filter-chip" data-filter="Surgeon Interaction" onclick="filterNotes('Surgeon Interaction', this)">Surgeon Interaction</span>
-          <span class="filter-chip" data-filter="Case Feedback" onclick="filterNotes('Case Feedback', this)">Case Feedback</span>
-          <span class="filter-chip" data-filter="Competitive Intel" onclick="filterNotes('Competitive Intel', this)">Competitive Intel</span>
-          <span class="filter-chip" data-filter="Product Interest" onclick="filterNotes('Product Interest', this)">Product Interest</span>
-          <span class="filter-chip" data-filter="Issue / Complaint" onclick="filterNotes('Issue / Complaint', this)">Issue / Complaint</span>
+          <span class="filter-chip" data-filter="Interaction" onclick="filterNotes('Interaction', this)">Interaction</span>
+          <span class="filter-chip" data-filter="Hospital" onclick="filterNotes('Hospital', this)">Hospital</span>
+          <span class="filter-chip" data-filter="Competition" onclick="filterNotes('Competition', this)">Competition</span>
+          <span class="filter-chip" data-filter="Opportunity" onclick="filterNotes('Opportunity', this)">Opportunity</span>
+          <span class="filter-chip" data-filter="Feedback" onclick="filterNotes('Feedback', this)">Feedback</span>
+          <span class="filter-chip" data-filter="Schedule" onclick="filterNotes('Schedule', this)">Schedule</span>
           <span class="filter-chip" data-filter="Observation" onclick="filterNotes('Observation', this)">Observation</span>
         </div>
         <div id="notesFeed"></div>
@@ -1563,6 +1564,11 @@ async function submitNote(e) {
 // NOTES FEED
 // ============================================================
 async function loadNotes() {
+  if (!currentUser) {
+    console.warn('loadNotes called before currentUser was set — skipping');
+    return;
+  }
+
   let query = sb.from('field_notes')
     .select('*, reps(name, role, territory_id), surgeons(first_name, last_name, credential, primary_hospital), locations(name, city, state), manufacturers(name), competitors(name)')
     .eq('is_test', false)
@@ -1580,7 +1586,14 @@ async function loadNotes() {
     query = query.in('rep_id', teamIds);
   }
 
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) {
+    console.error('loadNotes failed:', error);
+    const container = document.getElementById('notesFeed');
+    const msg = error.message || error.hint || error.details || JSON.stringify(error);
+    container.innerHTML = `<div class="empty-state" style="color:#b91c1c;padding:24px;"><div class="empty-state-icon">⚠️</div><div class="empty-state-text" style="font-weight:600;margin-bottom:6px;">Couldn't load notes</div><div style="font-size:12px;color:#7f1d1d;font-family:monospace;word-break:break-word;">${escHtml(msg)}</div><div style="font-size:11px;color:#9ca3af;margin-top:10px;">Pull-to-refresh or reopen the app. Persistent? Tell John — he can see the error in your browser console.</div></div>`;
+    return;
+  }
   allNotes = data || [];
   renderNotesFeed();
 }
