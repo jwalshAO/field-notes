@@ -2460,17 +2460,21 @@ async function finalizeNote() {
     };
 
     if (currentDraftId) {
-      const { error } = await sb.from('field_notes').update(noteFields).eq('id', currentDraftId);
+      // .select().single() makes RLS denials surface as real errors instead of
+      // silently returning success with 0 affected rows (V4.0.17 fix).
+      const { data, error } = await sb.from('field_notes').update(noteFields).eq('id', currentDraftId).select().single();
       if (error) throw error;
+      if (!data) throw new Error('Update returned no row — RLS or permissions issue.');
     } else {
-      const { error } = await sb.from('field_notes').insert([{
+      const { data, error } = await sb.from('field_notes').insert([{
         rep_id: currentUser.id,
         note_date: new Date().toISOString().split('T')[0],
         photo_url: null,
         conversation: chatHistory,
         ...noteFields,
-      }]);
+      }]).select().single();
       if (error) throw error;
+      if (!data) throw new Error('Insert returned no row — RLS or permissions issue.');
     }
 
     document.getElementById('confirmModal').classList.remove('open');
