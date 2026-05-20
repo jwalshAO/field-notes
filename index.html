@@ -2506,6 +2506,21 @@ async function celebrateSubmission() {
     if (error) throw error;
     const n = count || 0;
 
+    // V4.0.18 — also count today's submissions (local-tz midnight) for the
+    // daily-3 celebration. Fires once when today's count hits exactly 3.
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const { count: todayCount } = await sb.from('field_notes')
+      .select('id', { count: 'exact', head: true })
+      .eq('rep_id', currentUser.id)
+      .eq('status', 'submitted')
+      .gte('created_at', startOfToday.toISOString())
+      .or('is_test.is.null,is_test.eq.false');
+    const today = todayCount || 0;
+
+    const lifetimeMilestone = (n === 1) || (n > 0 && n % 5 === 0);
+    const dailyMilestone = (today === 3);
+
     const toast = document.getElementById('successToast');
     let msg = `Note saved — ${n} total`;
     if (n === 1) msg = "First note on the board.";
@@ -2513,12 +2528,21 @@ async function celebrateSubmission() {
     else if (n % 25 === 0) msg = `${n} notes — that's serious intel.`;
     else if (n % 10 === 0) msg = `${n} notes — keep them coming.`;
     else if (n % 5 === 0)  msg = `${n} notes saved. Nice run.`;
+
+    // Daily-3 milestone — overrides default toast only when no lifetime milestone
+    // is also firing; otherwise append a "3 today." suffix so the rare overlap
+    // doesn't lose either signal.
+    if (dailyMilestone && lifetimeMilestone) {
+      msg = msg + " 3 today.";
+    } else if (dailyMilestone) {
+      msg = "3 today — solid day in the field.";
+    }
+
     toast.textContent = msg;
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 2800);
 
-    const milestone = (n === 1) || (n > 0 && n % 5 === 0);
-    if (milestone && typeof confetti === 'function') {
+    if ((lifetimeMilestone || dailyMilestone) && typeof confetti === 'function') {
       fireConfetti(n);
     }
   } catch (err) {
