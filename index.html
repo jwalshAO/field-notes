@@ -868,6 +868,7 @@
     <div class="nav-tabs">
       <button class="nav-tab active" data-tab="new" onclick="switchTab('new')">+ New Note</button>
       <button class="nav-tab" data-tab="feed" onclick="switchTab('feed')">Notes Feed</button>
+      <button class="nav-tab" id="navTabTeam" data-tab="team" onclick="switchTab('team')" style="display:none;">Team</button>
     </div>
 
     <div class="content">
@@ -968,6 +969,12 @@
           <span class="filter-chip" data-filter="Observation" onclick="filterNotes('Observation', this)">Observation</span>
         </div>
         <div id="notesFeed"></div>
+      </div>
+
+      <!-- TEAM SCREEN (owner-only) -->
+      <div id="screen-team" class="screen">
+        <div id="teamStatsHeader" style="padding:14px 16px 6px;font-size:12px;color:#6b7280;">Submission activity, all reps.</div>
+        <div id="teamStats" style="padding:0 12px 24px;"></div>
       </div>
     </div>
   </div>
@@ -1149,6 +1156,11 @@ async function loadRepsAndLogin() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appShell').style.display = 'block';
   document.getElementById('headerUser').textContent = rep.name.split(' ')[0] + ' \u25BE';
+  // Owner-only: reveal the Team tab
+  if (rep.role === 'Owner' || rep.is_admin) {
+    const t = document.getElementById('navTabTeam');
+    if (t) t.style.display = '';
+  }
   document.getElementById('noteDate').value = new Date().toISOString().split('T')[0];
 
   loadSubjectEntities();
@@ -1763,6 +1775,49 @@ function switchTab(tab) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + tab).classList.add('active');
   if (tab === 'feed') loadNotes();
+  if (tab === 'team') loadTeamStats();
+}
+
+// ============================================================
+// TEAM STATS (owner-only)
+// ============================================================
+async function loadTeamStats() {
+  const container = document.getElementById('teamStats');
+  container.innerHTML = '<div style="padding:24px;text-align:center;color:#9ca3af;font-size:13px;">Loading…</div>';
+  const { data, error } = await sb.rpc('fn_rep_submission_stats');
+  if (error) {
+    container.innerHTML = `<div style="padding:24px;color:#b91c1c;font-size:13px;font-family:monospace;word-break:break-word;">${escHtml(error.message || JSON.stringify(error))}</div>`;
+    return;
+  }
+  renderTeamStats(data || []);
+}
+
+function renderTeamStats(rows) {
+  const container = document.getElementById('teamStats');
+  if (!rows.length) {
+    container.innerHTML = '<div style="padding:24px;text-align:center;color:#9ca3af;">No reps found.</div>';
+    return;
+  }
+  container.innerHTML = rows.map(r => {
+    const last = r.last_submitted_at ? relativeTime(r.last_submitted_at) : 'never';
+    const muted = r.total_count === 0;
+    return `
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin:8px 0;${muted ? 'opacity:0.55;' : ''}">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+          <div style="font-weight:600;font-size:15px;color:#111827;">${escHtml(r.rep_name)}</div>
+          <div style="font-size:11px;color:#6b7280;">${escHtml(r.rep_role || '')}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">
+          ${[['Today', r.today_count], ['Week', r.week_count], ['Month', r.month_count], ['Total', r.total_count]].map(([label, val]) => `
+            <div style="text-align:center;background:#f9fafb;border-radius:6px;padding:6px 4px;">
+              <div style="font-size:18px;font-weight:600;color:${val > 0 ? '#2563eb' : '#9ca3af'};line-height:1.1;">${val}</div>
+              <div style="font-size:10px;color:#6b7280;letter-spacing:0.3px;text-transform:uppercase;margin-top:2px;">${label}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="font-size:11px;color:#9ca3af;">Last submitted: ${last}</div>
+      </div>`;
+  }).join('');
 }
 
 // ============================================================
@@ -2457,6 +2512,9 @@ async function finalizeNote() {
       tags: mergedTags,
       next_action: nextAction || null,
       status: 'submitted',
+      // V4.0.19: bump draft_updated_at on submit so the Team stats use the
+      // actual submission time (not whenever the draft row was first created).
+      draft_updated_at: new Date().toISOString(),
     };
 
     if (currentDraftId) {
