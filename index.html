@@ -2006,7 +2006,25 @@ async function resumeDraft(id) {
     // Rehydrate state
     currentDraftId = data.id;
     chatHistory = Array.isArray(data.conversation) ? data.conversation : [];
-    parsedNoteDraft = null;
+
+    // V4.0.16 — If the draft has parsed fields populated (Q previously called
+    // submit_note before the rep abandoned), rehydrate parsedNoteDraft so the
+    // user can finalize it directly via the confirm modal. Without this, the
+    // resume → Done flow falls through to Q saying "already submitted" and
+    // never actually flips status to 'submitted'.
+    const hasParsedFields = !!(data.subject_text || data.note_body || (Array.isArray(data.tags) && data.tags.length));
+    if (hasParsedFields) {
+      parsedNoteDraft = {
+        subject_type: data.subject_type === 'hospital' ? 'location' : (data.subject_type || 'freeform'),
+        subject_id: data.surgeon_id || data.location_id || data.manufacturer_id || data.competitor_id || null,
+        subject_text: data.subject_text || '',
+        note_body: data.note_body || '',
+        tags: Array.isArray(data.tags) ? data.tags : [],
+        next_action: data.next_action || null,
+      };
+    } else {
+      parsedNoteDraft = null;
+    }
 
     // Repaint thread from conversation
     const thread = document.getElementById('chatThread');
@@ -2027,6 +2045,13 @@ async function resumeDraft(id) {
     setDoneEnabled(chatHistory.length > 0);
     setCancelVisible(true);
     await loadDrafts();
+
+    // V4.0.16 — If the draft was already "ready" (parsed_note rehydrated above),
+    // immediately open the confirm modal so the user can review and finalize.
+    // No Q roundtrip needed; the rep already finished gathering on a prior session.
+    if (parsedNoteDraft) {
+      setTimeout(() => showConfirmModal(parsedNoteDraft), 500);
+    }
   } catch (err) {
     alert('Could not resume draft: ' + (err.message || err));
   }
