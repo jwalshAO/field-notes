@@ -931,6 +931,9 @@
               <span class="tag-chip" data-tag="Feedback" onclick="toggleTag(this)">Feedback</span>
               <span class="tag-chip" data-tag="Schedule" onclick="toggleTag(this)">Schedule</span>
               <span class="tag-chip" data-tag="Observation" onclick="toggleTag(this)">Observation</span>
+              <span class="tag-chip" data-tag="Meeting/Demo" onclick="toggleTag(this)">Meeting/Demo</span>
+              <span class="tag-chip" data-tag="Tend" onclick="toggleTag(this)">Tend</span>
+              <span class="tag-chip" data-tag="Give to Get" onclick="toggleTag(this)">Give to Get</span>
             </div>
           </div>
 
@@ -967,6 +970,9 @@
           <span class="filter-chip" data-filter="Feedback" onclick="filterNotes('Feedback', this)">Feedback</span>
           <span class="filter-chip" data-filter="Schedule" onclick="filterNotes('Schedule', this)">Schedule</span>
           <span class="filter-chip" data-filter="Observation" onclick="filterNotes('Observation', this)">Observation</span>
+          <span class="filter-chip" data-filter="Meeting/Demo" onclick="filterNotes('Meeting/Demo', this)">Meeting/Demo</span>
+          <span class="filter-chip" data-filter="Tend" onclick="filterNotes('Tend', this)">Tend</span>
+          <span class="filter-chip" data-filter="Give to Get" onclick="filterNotes('Give to Get', this)">Give to Get</span>
         </div>
         <div id="notesFeed"></div>
       </div>
@@ -1906,24 +1912,76 @@ function initChat() {
 
 let pendingChipTag = null;
 
+// New contact-type chips added 2026-05-23. boostUntil pins them to the front
+// of the rail until the date passes — gives reps ~2 weeks to discover them
+// before they have to earn their slot by actual usage.
 const Q_STARTERS = [
-  { label: 'Interaction',  tag: 'Interaction',  question: "Who, where, and what came up?" },
-  { label: 'Hospital',     tag: 'Hospital',     question: "Which hospital, and what did you see?" },
-  { label: 'Competition',  tag: 'Competition',  question: "Which competitor, doing what, and where?" },
-  { label: 'Opportunity',  tag: 'Opportunity',  question: "Which surgeon/hospital, and what's the opening?" },
-  { label: 'Feedback',     tag: 'Feedback',     question: "Feedback from who, and on what?" },
-  { label: 'Schedule',     tag: 'Schedule',     question: "Which surgeon, what day, and where?" },
-  { label: 'Other',        tag: null,           question: null },
+  { label: 'Interaction',   tag: 'Interaction',   question: "Who, where, and what came up?" },
+  { label: 'Hospital',      tag: 'Hospital',      question: "Which hospital, and what did you see?" },
+  { label: 'Competition',   tag: 'Competition',   question: "Which competitor, doing what, and where?" },
+  { label: 'Opportunity',   tag: 'Opportunity',   question: "Which surgeon/hospital, and what's the opening?" },
+  { label: 'Feedback',      tag: 'Feedback',      question: "Feedback from who, and on what?" },
+  { label: 'Schedule',      tag: 'Schedule',      question: "Which surgeon, what day, and where?" },
+  { label: 'Meeting/Demo',  tag: 'Meeting/Demo',  question: "Who'd you meet with, where, and what did you cover?", boostUntil: '2026-06-06' },
+  { label: 'Tend',          tag: 'Tend',          question: "Which relationship did you tend to, and how?",        boostUntil: '2026-06-06' },
+  { label: 'Give to Get',   tag: 'Give to Get',   question: "Who'd you do something for, and what was it?",        boostUntil: '2026-06-06' },
+  { label: 'Other',         tag: null,            question: null },
 ];
 
-function renderStarterChips() {
+const CHIP_USAGE_WINDOW_DAYS = 60;
+let chipUsageCounts = null; // {tag: count} for THIS rep, last 60 days
+
+async function fetchRepTagCounts() {
+  if (!currentUser?.id) return {};
+  const since = new Date(Date.now() - CHIP_USAGE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await sb
+    .from('field_notes')
+    .select('tags')
+    .eq('rep_id', currentUser.id)
+    .eq('is_test', false)
+    .gte('created_at', since);
+  if (error || !data) return {};
+  const counts = {};
+  for (const row of data) {
+    if (!Array.isArray(row.tags)) continue;
+    for (const t of row.tags) counts[t] = (counts[t] || 0) + 1;
+  }
+  return counts;
+}
+
+function orderedStarterChips(counts) {
+  const today = new Date().toISOString().slice(0, 10);
+  const indexOf = new Map(Q_STARTERS.map((c, i) => [c.label, i]));
+  const boosted = [];
+  const ranked = [];
+  let other = null;
+  for (const c of Q_STARTERS) {
+    if (c.tag === null) { other = c; continue; }
+    if (c.boostUntil && today <= c.boostUntil) boosted.push(c);
+    else ranked.push(c);
+  }
+  // Boosted chips in declaration order; non-boosted by usage count desc, tiebreak by declaration order
+  ranked.sort((a, b) => {
+    const ca = counts[a.tag] || 0;
+    const cb = counts[b.tag] || 0;
+    if (cb !== ca) return cb - ca;
+    return indexOf.get(a.label) - indexOf.get(b.label);
+  });
+  return [...boosted, ...ranked, ...(other ? [other] : [])];
+}
+
+async function renderStarterChips() {
   const thread = document.getElementById('chatThread');
   if (!thread) return;
   if (document.getElementById('qStarterChips')) return;
+  // Reuse this session's cached counts if we already fetched; otherwise fetch now.
+  if (chipUsageCounts === null) chipUsageCounts = await fetchRepTagCounts();
+  // The chat may have advanced (rep typed something) while we were fetching — bail if the bubble's gone.
+  if (!document.getElementById('chatThread') || document.getElementById('qStarterChips')) return;
   const wrap = document.createElement('div');
   wrap.className = 'q-chips';
   wrap.id = 'qStarterChips';
-  Q_STARTERS.forEach(c => {
+  orderedStarterChips(chipUsageCounts).forEach(c => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'q-chip';
@@ -2438,7 +2496,7 @@ function blobToBase64(blob) {
 // ============================================================
 // CONFIRM-AND-EDIT MODAL
 // ============================================================
-const TAG_LIST = ['Interaction','Hospital','Competition','Opportunity','Feedback','Schedule','Observation'];
+const TAG_LIST = ['Interaction','Hospital','Competition','Opportunity','Feedback','Schedule','Observation','Meeting/Demo','Tend','Give to Get'];
 let confirmSelectedTags = [];
 
 function showConfirmModal(parsed) {
@@ -2555,6 +2613,7 @@ async function finalizeNote() {
 // CELEBRATION (confetti + count on submit)
 // ============================================================
 async function celebrateSubmission() {
+  chipUsageCounts = null; // refetched on next chip render so the rail reorders with the new submission
   try {
     const { count, error } = await sb.from('field_notes')
       .select('id', { count: 'exact', head: true })
