@@ -553,6 +553,57 @@
     }
     .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
     .modal-actions { display: flex; gap: 12px; margin-top: 16px; }
+
+    /* Intro modal — first-time rep explainer */
+    .intro-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+      z-index: 400; align-items: center; justify-content: center; padding: 16px;
+    }
+    .intro-overlay.open { display: flex; }
+    .intro-card {
+      background: var(--white); border-radius: 16px; padding: 24px 22px;
+      width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 24px 48px rgba(0,0,0,0.18);
+      animation: introIn 0.22s ease;
+    }
+    @keyframes introIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .intro-header { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+    .intro-logo { width: 44px; height: 44px; border-radius: 10px; }
+    .intro-title { font-size: 20px; font-weight: 700; color: var(--gray-900); line-height: 1.2; }
+    .intro-sub { font-size: 13px; color: var(--gray-500); margin-bottom: 18px; }
+    .intro-card h4 {
+      font-size: 13px; font-weight: 700; color: var(--blue-700);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin: 18px 0 8px 0;
+    }
+    .intro-card p { font-size: 15px; line-height: 1.5; color: var(--gray-700); margin: 0 0 10px 0; }
+    .intro-card ul { margin: 0 0 6px 0; padding-left: 18px; }
+    .intro-card li { font-size: 14px; line-height: 1.5; color: var(--gray-700); margin-bottom: 6px; }
+    .intro-card li b { color: var(--gray-900); font-weight: 600; }
+    .intro-card ol { margin: 0 0 6px 0; padding-left: 22px; }
+    .intro-card ol li { margin-bottom: 4px; }
+    .intro-cta {
+      display: block; width: 100%; margin-top: 20px;
+      background: var(--blue-600); color: var(--white);
+      border: none; border-radius: 10px; padding: 14px;
+      font-size: 16px; font-weight: 600; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .intro-cta:active { background: var(--blue-700); }
+    .intro-close {
+      position: absolute; top: 10px; right: 14px;
+      background: none; border: none; color: var(--gray-400);
+      font-size: 22px; cursor: pointer; padding: 4px 8px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .help-btn {
+      background: none; border: none; color: var(--gray-500);
+      font-size: 16px; font-weight: 600; cursor: pointer;
+      width: 26px; height: 26px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .help-btn:hover, .help-btn:active { background: var(--gray-100); color: var(--blue-600); }
     .btn-secondary {
       flex: 1; padding: 12px; border: 1.5px solid var(--gray-300);
       border-radius: 10px; background: var(--white); font-size: 15px;
@@ -879,6 +930,7 @@
           <div class="mode-bar-q" id="modeBarLabel">Q</div>
           <div style="margin-left:auto;display:flex;gap:14px;align-items:center;">
             <button type="button" class="mode-link" id="newNoteLink" onclick="startNewNote()" style="background:none;border:none;color:#2563eb;font-size:13px;cursor:pointer;padding:0;">↻ New</button>
+            <button type="button" class="help-btn" id="introHelpBtn" onclick="showIntroModal(true)" aria-label="What is Field Notes">?</button>
             <button type="button" class="mode-link" id="modeToggleLink" onclick="toggleMode()">Use form ▸</button>
           </div>
         </div>
@@ -1040,6 +1092,55 @@
     </div>
   </div>
 
+  <!-- FIRST-TIME REP EXPLAINER -->
+  <div id="introModal" class="intro-overlay" onclick="dismissIntroModal(event)">
+    <div class="intro-card" style="position:relative;" onclick="event.stopPropagation()">
+      <button type="button" class="intro-close" onclick="dismissIntroModal()" aria-label="Close">×</button>
+      <div class="intro-header">
+        <img src="/icon-192.png" class="intro-logo" alt="Q">
+        <div>
+          <div class="intro-title">Welcome to Field Notes</div>
+          <div class="intro-sub">Your in-pocket intel capture tool.</div>
+        </div>
+      </div>
+
+      <p>Chat with <b>Q</b> by voice or text, hit <b>Done</b>, and your note flows into the Agility brain. Every note you submit makes the whole team smarter — facts get pulled out and surfaced on every surgeon, hospital, manufacturer, and competitor page in the dashboard.</p>
+
+      <h4>What to capture — go wide</h4>
+      <p>Everything is intel. Don't filter yourself.</p>
+      <ul>
+        <li><b>Conversations</b> — surgeons, materials managers, OR staff, schedulers, manufacturer reps. Who said what.</li>
+        <li><b>Hospital intel</b> — staffing, EHR switches, OR scheduling, vendor policies, things you overheard.</li>
+        <li><b>Schedule signals</b> — "Bozentka's at Penn on Thursdays." Builds the surgeon calendar.</li>
+        <li><b>Product interest</b> — anyone mentioning Geminus, Remplir, B3, 3D guides, etc.</li>
+        <li><b>Feedback</b> — case wins, complaints, training reactions, tray issues.</li>
+        <li><b>Competitor sightings</b> — a tray, a rep, a conversion threat.</li>
+        <li><b>Random observations</b> — anything you noticed that you'd otherwise forget.</li>
+      </ul>
+      <p style="margin-top:10px;">The more breadth, the more the brain connects dots across the team.</p>
+
+      <h4>How it works</h4>
+      <ol>
+        <li>Tap a chip on the welcome screen, or just type / hit the mic.</li>
+        <li>Talk through what happened. Q asks at most one follow-up.</li>
+        <li>Hit <b>Done</b>. Review the auto-organized draft. Submit.</li>
+      </ol>
+
+      <h4>The chips</h4>
+      <p>Six topic chips (Interaction, Hospital, Competition, Opportunity, Feedback, Schedule) plus three contact-type chips (<b>Meeting/Demo</b>, <b>Tend</b>, <b>Give to Get</b>) plus Other. Use multiple freely — a surgeon demo can be <b>Meeting/Demo + Interaction + Opportunity</b>. Tag less, capture more.</p>
+
+      <h4>No friction promise</h4>
+      <ul>
+        <li>Q will never block your note.</li>
+        <li>Names not in the CRM get captured as text — no arguing.</li>
+        <li>The confirm screen lets you edit anything.</li>
+        <li>Voice works one-handed in the parking lot.</li>
+      </ul>
+
+      <button type="button" class="intro-cta" onclick="dismissIntroModal()">Got it — let's go</button>
+    </div>
+  </div>
+
   <div id="photoViewer" class="photo-viewer" onclick="this.classList.remove('open')">
     <img id="photoViewerImg" src="">
   </div>
@@ -1173,6 +1274,43 @@ async function loadRepsAndLogin() {
   loadNotes();
   initChat();
   loadDrafts();
+  showIntroIfFirstTime();
+}
+
+// ============================================================
+// FIRST-TIME EXPLAINER (V4.4.0)
+// ============================================================
+const INTRO_STORAGE_KEY = 'fn_intro_seen_v1';
+function introWasSeen() {
+  if (!currentUser?.id) return true; // bail safe — never show if we somehow don't know who they are
+  try { return localStorage.getItem(INTRO_STORAGE_KEY + '_' + currentUser.id) === '1'; }
+  catch { return true; }
+}
+function markIntroSeen() {
+  if (!currentUser?.id) return;
+  try { localStorage.setItem(INTRO_STORAGE_KEY + '_' + currentUser.id, '1'); } catch {}
+}
+function showIntroIfFirstTime() {
+  if (introWasSeen()) return;
+  showIntroModal(false);
+}
+function showIntroModal(manual) {
+  const el = document.getElementById('introModal');
+  if (!el) return;
+  el.classList.add('open');
+  el.dataset.manual = manual ? '1' : '0';
+  // Scroll the card to the top whenever it opens
+  const card = el.querySelector('.intro-card');
+  if (card) card.scrollTop = 0;
+}
+function dismissIntroModal() {
+  // Called from the close X, the CTA, or a backdrop tap (inner card stops
+  // propagation so card clicks never reach this). Always dismiss + mark seen —
+  // the flag just suppresses auto-show; "?" still reopens manually.
+  const el = document.getElementById('introModal');
+  if (!el) return;
+  el.classList.remove('open');
+  markIntroSeen();
 }
 
 function showLoading(show) {
