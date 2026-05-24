@@ -2171,6 +2171,7 @@ async function persistDraft(parsed) {
       location_id:     (parsed.subject_type === 'location')     ? (parsed.subject_id || null) : null,
       manufacturer_id: (parsed.subject_type === 'manufacturer') ? (parsed.subject_id || null) : null,
       competitor_id:   (parsed.subject_type === 'competitor')   ? (parsed.subject_id || null) : null,
+      contact_id: parsed.contact_id || (parsed.subject_type === 'contact' ? (parsed.subject_id || null) : null),
       note_body: parsed.note_body || null,
       tags: Array.isArray(parsed.tags) ? parsed.tags : [],
       next_action: parsed.next_action || null,
@@ -2249,7 +2250,7 @@ async function resumeDraft(id) {
   if (chatBusy) return;
   try {
     const { data, error } = await sb.from('field_notes')
-      .select('id, conversation, subject_text, subject_type, surgeon_id, location_id, manufacturer_id, competitor_id, note_body, tags, next_action')
+      .select('id, conversation, subject_text, subject_type, surgeon_id, location_id, manufacturer_id, competitor_id, contact_id, note_body, tags, next_action')
       .eq('id', id).eq('rep_id', currentUser.id).eq('status', 'draft').single();
     if (error) throw error;
     if (!data) return;
@@ -2265,10 +2266,12 @@ async function resumeDraft(id) {
     // never actually flips status to 'submitted'.
     const hasParsedFields = !!(data.subject_text || data.note_body || (Array.isArray(data.tags) && data.tags.length));
     if (hasParsedFields) {
+      const restoredType = data.subject_type === 'hospital' ? 'location' : (data.subject_type || 'freeform');
       parsedNoteDraft = {
-        subject_type: data.subject_type === 'hospital' ? 'location' : (data.subject_type || 'freeform'),
-        subject_id: data.surgeon_id || data.location_id || data.manufacturer_id || data.competitor_id || null,
+        subject_type: restoredType,
+        subject_id: data.surgeon_id || data.location_id || data.manufacturer_id || data.competitor_id || (restoredType === 'contact' ? data.contact_id : null) || null,
         subject_text: data.subject_text || '',
+        contact_id: data.contact_id || null,
         note_body: data.note_body || '',
         tags: Array.isArray(data.tags) ? data.tags : [],
         next_action: data.next_action || null,
@@ -2456,7 +2459,11 @@ async function sendToQ({ text, audioBase64, audioMime }) {
   showTyping();
 
   try {
-    const payload = { history: chatHistory };
+    const payload = {
+      history: chatHistory,
+      rep_id: currentUser?.id ?? null,
+      rep_name: currentUser?.name ?? null,
+    };
     if (audioBase64) {
       payload.audio_base64 = audioBase64;
       payload.audio_mime = audioMime || 'audio/webm';
@@ -2486,6 +2493,12 @@ async function sendToQ({ text, audioBase64, audioMime }) {
     if (Array.isArray(data.tool_calls_made)) {
       data.tool_calls_made.forEach(tc => {
         if (tc.name !== 'submit_note') appendChatSystem('🔍 ' + toolCallLabel(tc.name, tc.input || {}));
+      });
+    }
+
+    if (Array.isArray(data.contacts_created) && data.contacts_created.length) {
+      data.contacts_created.forEach(c => {
+        appendChatSystem('✓ Added "' + (c.name || 'new contact') + '" to contacts — flagged for John to review');
       });
     }
 
@@ -2704,6 +2717,7 @@ async function finalizeNote() {
       location_id:     (parsed.subject_type === 'location')     ? (parsed.subject_id || null) : null,
       manufacturer_id: (parsed.subject_type === 'manufacturer') ? (parsed.subject_id || null) : null,
       competitor_id:   (parsed.subject_type === 'competitor')   ? (parsed.subject_id || null) : null,
+      contact_id: parsed.contact_id || (parsed.subject_type === 'contact' ? (parsed.subject_id || null) : null),
       note_body: noteBody,
       tags: mergedTags,
       next_action: nextAction || null,
