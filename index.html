@@ -985,7 +985,7 @@
               <span class="tag-chip" data-tag="Observation" onclick="toggleTag(this)">Observation</span>
               <span class="tag-chip" data-tag="Meeting/Demo" onclick="toggleTag(this)">Meeting/Demo</span>
               <span class="tag-chip" data-tag="Tend" onclick="toggleTag(this)">Tend</span>
-              <span class="tag-chip" data-tag="Give to Get" onclick="toggleTag(this)">Give to Get</span>
+              <span class="tag-chip" data-tag="Give to Grow" onclick="toggleTag(this)">Give to Grow</span>
             </div>
           </div>
 
@@ -1024,7 +1024,7 @@
           <span class="filter-chip" data-filter="Observation" onclick="filterNotes('Observation', this)">Observation</span>
           <span class="filter-chip" data-filter="Meeting/Demo" onclick="filterNotes('Meeting/Demo', this)">Meeting/Demo</span>
           <span class="filter-chip" data-filter="Tend" onclick="filterNotes('Tend', this)">Tend</span>
-          <span class="filter-chip" data-filter="Give to Get" onclick="filterNotes('Give to Get', this)">Give to Get</span>
+          <span class="filter-chip" data-filter="Give to Grow" onclick="filterNotes('Give to Grow', this)">Give to Grow</span>
         </div>
         <div id="notesFeed"></div>
       </div>
@@ -1122,17 +1122,27 @@
       <h4>How it works</h4>
       <ol>
         <li>Tap a chip on the welcome screen, or just type / hit the mic.</li>
-        <li>Talk through what happened. Q asks at most one follow-up.</li>
-        <li>Hit <b>Done</b>. Review the auto-organized draft. Submit.</li>
+        <li>Talk through what you observed/overheard. Q asks at most one follow-up.</li>
+        <li>Hit <b>Done</b>. Review the auto-organized draft. Hit <b>Submit</b>.</li>
       </ol>
+      <p style="margin-top:6px;font-size:13px;color:#666;">Two taps to save: <b>Done</b> → <b>Submit</b>. In a hurry? Say "submit" or "send it" any time — Q skips its clarifying questions and saves what you have. You can always edit on the confirm screen.</p>
 
       <h4>The chips</h4>
-      <p>Six topic chips (Interaction, Hospital, Competition, Opportunity, Feedback, Schedule) plus three contact-type chips (<b>Meeting/Demo</b>, <b>Tend</b>, <b>Give to Get</b>) plus Other. Use multiple freely — a surgeon demo can be <b>Meeting/Demo + Interaction + Opportunity</b>. Tag less, capture more.</p>
+      <p>Six topic chips (Interaction, Hospital, Competition, Opportunity, Feedback, Schedule) plus three contact-type chips (<b>Meeting/Demo</b>, <b>Tend</b>, <b>Give to Grow</b>) plus Other. Use multiple freely — a surgeon demo can be <b>Meeting/Demo + Interaction + Opportunity</b>. Tag less, capture more.</p>
+
+      <h4>Tend & Give to Grow — the relationship moves</h4>
+      <p>These two chips capture the relationship-building work that drives long-term growth — inspired by Mo Bunnell's <i>Snowball System</i>: small, consistent generosity compounds into trust that eventually converts into business. We track them so the team can see who's investing in which relationships and how those investments pay off.</p>
+      <ul>
+        <li><b>Tend</b> — pure relationship maintenance. Coffee with Battista just to catch up. Stopping by Methodist to say hi. Not transactional, not opportunity-driven — keeping the relationship warm.</li>
+        <li><b>Give to Grow</b> — you did something FOR someone with no immediate ask attached. Examples: stayed late to help SPD fix a tray, ran an instrument over yourself when freight was late, sent a surgeon an article you knew they'd want, recommended a contractor / restaurant / specialist to OR staff, connected one contact with another who could help them, covered a colleague's case so they could make a family thing.</li>
+      </ul>
+      <p style="margin-top:10px;">Both feed the "what made this relationship strong" record. The growth comes later — and it always does.</p>
 
       <h4>No friction promise</h4>
       <ul>
         <li>Q will never block your note.</li>
         <li>Names not in the CRM get captured as text — no arguing.</li>
+        <li>Q may pause once to confirm a name match ("Jeanie at Methodist — sound right?"). Say yes/no, or just say "submit" to skip and save with what you have.</li>
         <li>The confirm screen lets you edit anything.</li>
         <li>Voice works one-handed in the parking lot.</li>
       </ul>
@@ -2062,7 +2072,7 @@ const Q_STARTERS = [
   { label: 'Schedule',      tag: 'Schedule',      question: "Which surgeon, what day, and where?" },
   { label: 'Meeting/Demo',  tag: 'Meeting/Demo',  question: "Who'd you meet with, where, and what did you cover?", boostUntil: '2026-06-06' },
   { label: 'Tend',          tag: 'Tend',          question: "Which relationship did you tend to, and how?",        boostUntil: '2026-06-06' },
-  { label: 'Give to Get',   tag: 'Give to Get',   question: "Who'd you do something for, and what was it?",        boostUntil: '2026-06-06' },
+  { label: 'Give to Grow',   tag: 'Give to Grow',   question: "Who'd you do something for, and what was it?",        boostUntil: '2026-06-06' },
   { label: 'Other',         tag: null,            question: null },
 ];
 
@@ -2647,7 +2657,7 @@ function blobToBase64(blob) {
 // ============================================================
 // CONFIRM-AND-EDIT MODAL
 // ============================================================
-const TAG_LIST = ['Interaction','Hospital','Competition','Opportunity','Feedback','Schedule','Observation','Meeting/Demo','Tend','Give to Get'];
+const TAG_LIST = ['Interaction','Hospital','Competition','Opportunity','Feedback','Schedule','Observation','Meeting/Demo','Tend','Give to Grow'];
 let confirmSelectedTags = [];
 
 function showConfirmModal(parsed) {
