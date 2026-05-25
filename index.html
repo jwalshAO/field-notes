@@ -1103,6 +1103,16 @@
         <label class="form-label">Next Action</label>
         <textarea id="confirmNextAction" class="form-input" rows="2" style="min-height:auto;resize:none;"></textarea>
       </div>
+      <div class="form-group" style="margin-top:-4px;">
+        <div id="confirmVisibilityRow" onclick="toggleConfirmVisibility()"
+             style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--gray-300);border-radius:10px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;background:var(--white);">
+          <span id="confirmVisIcon" style="font-size:20px;line-height:1;">🌐</span>
+          <div style="flex:1;">
+            <div id="confirmVisLabel" style="font-weight:600;font-size:14px;color:var(--gray-900);">Shared with the team</div>
+            <div id="confirmVisSub" style="font-size:11px;color:var(--gray-500);margin-top:2px;">Tap to lock — only you & admins will see it</div>
+          </div>
+        </div>
+      </div>
       <div style="display:flex;gap:10px;margin-top:16px;">
         <button type="button" class="btn-submit" style="flex:1;background:var(--gray-200);color:var(--gray-700);" onclick="closeConfirmModalBack()">Back to chat</button>
         <button type="button" class="btn-submit" id="confirmSubmitBtn" style="flex:2;" onclick="finalizeNote()">Submit</button>
@@ -2804,6 +2814,7 @@ function blobToBase64(blob) {
 // ============================================================
 const TAG_LIST = ['Interaction','Hospital','Competition','Opportunity','Feedback','Schedule','Observation','Meeting/Demo','Tend','Give to Grow'];
 let confirmSelectedTags = [];
+let confirmIsShared = true; // V4.1.9: rep visibility choice — initialized per rep default in showConfirmModal
 
 function showConfirmModal(parsed) {
   document.getElementById('confirmSubject').value = parsed.subject_text || '';
@@ -2819,8 +2830,38 @@ function showConfirmModal(parsed) {
   if (pendingChipTag && !confirmSelectedTags.includes(pendingChipTag)) {
     confirmSelectedTags.unshift(pendingChipTag);
   }
+  // V4.1.9: visibility default — use draft's existing value if resuming, else rep default
+  if (typeof parsed.is_shared === 'boolean') {
+    confirmIsShared = parsed.is_shared;
+  } else if (currentUser && typeof currentUser.default_notes_shared === 'boolean') {
+    confirmIsShared = currentUser.default_notes_shared;
+  } else {
+    confirmIsShared = true;
+  }
   renderConfirmTags();
+  renderConfirmVisibility();
   document.getElementById('confirmModal').classList.add('open');
+}
+
+function renderConfirmVisibility() {
+  const icon = document.getElementById('confirmVisIcon');
+  const label = document.getElementById('confirmVisLabel');
+  const sub = document.getElementById('confirmVisSub');
+  if (!icon) return;
+  if (confirmIsShared) {
+    icon.textContent = '🌐';
+    label.textContent = 'Shared with the team';
+    sub.textContent = 'Tap to lock — only you & admins will see it';
+  } else {
+    icon.textContent = '🔒';
+    label.textContent = 'Locked — only you & admins';
+    sub.textContent = 'Tap to share with the team';
+  }
+}
+
+function toggleConfirmVisibility() {
+  confirmIsShared = !confirmIsShared;
+  renderConfirmVisibility();
 }
 
 function renderConfirmTags() {
@@ -2885,6 +2926,8 @@ async function finalizeNote() {
       tags: mergedTags,
       next_action: nextAction || null,
       status: 'submitted',
+      // V4.1.9: visibility chosen on confirm screen (overrides DB trigger default)
+      is_shared: !!confirmIsShared,
       // V4.0.19: bump draft_updated_at on submit so the Team stats use the
       // actual submission time (not whenever the draft row was first created).
       draft_updated_at: new Date().toISOString(),
