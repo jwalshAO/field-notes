@@ -352,6 +352,22 @@
       background: var(--red-100);
       color: var(--red-600);
     }
+    .note-vis-btn {
+      background: none;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 6px;
+      line-height: 1;
+      transition: all 0.15s;
+      opacity: 0.7;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .note-vis-btn:hover, .note-vis-btn:active {
+      background: var(--gray-100);
+      opacity: 1;
+    }
     .note-card-photo {
       margin-top: 10px;
       border-radius: 8px;
@@ -598,13 +614,14 @@
       -webkit-tap-highlight-color: transparent;
     }
     .help-btn {
-      background: none; border: none; color: var(--gray-500);
-      font-size: 16px; font-weight: 600; cursor: pointer;
-      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--blue-600); border: none; color: #fff;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      width: 22px; height: 22px; border-radius: 50%;
       display: inline-flex; align-items: center; justify-content: center;
+      line-height: 1;
       -webkit-tap-highlight-color: transparent;
     }
-    .help-btn:hover, .help-btn:active { background: var(--gray-100); color: var(--blue-600); }
+    .help-btn:hover, .help-btn:active { background: var(--blue-700); color: #fff; }
     .btn-secondary {
       flex: 1; padding: 12px; border: 1.5px solid var(--gray-300);
       border-radius: 10px; background: var(--white); font-size: 15px;
@@ -1105,20 +1122,22 @@
         </div>
       </div>
 
-      <p>Chat with <b>Q</b> by voice or text, hit <b>Done</b>, and your note flows into the Agility brain. Every note you submit makes the whole team smarter — facts get pulled out and surfaced on every surgeon, hospital, manufacturer, and competitor page in the dashboard.</p>
+      <p>Chat with <b>Q</b> by voice or text, hit <b>Done</b>, and your note flows into <b>the team dossier</b>. Every note you submit makes the whole team smarter — facts get pulled out and surfaced on every surgeon, hospital, manufacturer, and competitor page in the CRM.</p>
+
+      <p style="margin-top:-4px;font-size:13px;color:var(--gray-500);font-style:italic;">Why "Q"? After Bond's <b>Q-Branch</b> — your technical sidekick in the field. In and out, no theatrics. Reps are the agents; Q hands you the gear and gets out of your way.</p>
 
       <h4>What to capture — go wide</h4>
       <p>Everything is intel. Don't filter yourself.</p>
       <ul>
         <li><b>Conversations</b> — surgeons, materials managers, OR staff, schedulers, manufacturer reps. Who said what.</li>
         <li><b>Hospital intel</b> — staffing, who's tired of which vendor rep, OR scheduling, vendor policies, things you overheard.</li>
-        <li><b>Schedule signals</b> — "Bozentka's at Penn on Thursdays." Builds the surgeon calendar.</li>
-        <li><b>Product interest</b> — anyone mentioning Geminus, Remplir, B3, 3D guides, etc.</li>
+        <li><b>Schedule signals</b> — "Boz is at PMUC on Mondays." Builds out the surgeon calendar.</li>
+        <li><b>Product interest</b> — anyone mentioning competitors, Geminus, nerve wraps, distal humerus, etc.</li>
         <li><b>Feedback</b> — case wins, complaints, training reactions, tray issues.</li>
-        <li><b>Competitor sightings</b> — a tray, a rep, a conversion threat.</li>
+        <li><b>Competitor sightings</b> — a tray on the loaner rack, a rep talking to a surgeon, Dr. Strange using Acumed for clavicle.</li>
         <li><b>Random observations</b> — anything you noticed that you'd otherwise forget.</li>
       </ul>
-      <p style="margin-top:10px;">The more breadth, the more the brain connects dots across the team.</p>
+      <p style="margin-top:10px;">The more breadth, the richer the team dossier gets.</p>
 
       <h4>How it works</h4>
       <ol>
@@ -1134,7 +1153,7 @@
       <h4>Tend & Give to Grow — the relationship moves</h4>
       <p>These two chips capture the relationship-building work that drives long-term growth. We track them so the team can see who's investing in which relationships and how those investments pay off.</p>
       <ul>
-        <li><b>Tend</b> — pure relationship maintenance. Coffee with Battista just to catch up. Stopping by Methodist to say hi. Not transactional, not opportunity-driven — keeping the relationship warm.</li>
+        <li><b>Tend</b> — pure relationship maintenance. Chatting with Battista just to catch up. Stopping by Methodist to say hi. Not transactional, not opportunity-driven — keeping the relationship warm.</li>
         <li><b>Give to Grow</b> — you gave value to someone with no ask attached: a thoughtful intro, a relevant article, time spent helping them think through a problem, a referral they needed. <b>Not random — planned and strategic, on a cadence (think quarterly per relationship).</b> The "grow" comes later, naturally, because that's how reciprocity works. <a href="javascript:void(0)" onclick="showG2GModal()" style="color:var(--blue-600);font-weight:500;text-decoration:underline;">What's behind Give to Grow →</a></li>
       </ul>
       <p style="margin-top:10px;">Both feed the "what made this relationship strong" record.</p>
@@ -1163,7 +1182,7 @@
         </div>
       </div>
 
-      <p>Mo Bunnell's "Give to Grow" is the core philosophy behind his business development work, and it became the title of his 2024 book. The central idea is simple but cuts against how most professionals think about BD: <b>the fastest way to grow your book of business is to focus relentlessly on giving value to others, not on asking for the sale.</b></p>
+      <p>Mo Bunnell's "Give to Grow" is the core philosophy behind his business development (BD) work, and it became the title of his 2024 book. The central idea is simple but cuts against how most professionals think about BD: <b>the fastest way to grow your book of business is to focus relentlessly on giving value to others, not on asking for the sale.</b></p>
 
       <p>A few key threads in how he frames it:</p>
 
@@ -1183,7 +1202,7 @@
       <p>Bunnell is careful to distinguish this from transactional networking ("I'll help you so you'll help me"). The gift has to be freely given, no strings. But because humans are wired for reciprocity, the returns come anyway, often from unexpected directions.</p>
 
       <h4>For Agility specifically</h4>
-      <p>This maps cleanly onto how we build with surgeons and hospital staff. The reps who win long-term aren't the ones pushing trays; they're the ones surgeons call when they have a weird case, want to think through a technique, or need a connection at another institution. That's Give to Grow in the OR.</p>
+      <p>This maps cleanly onto how we build with surgeons and hospital staff. The reps who win long-term aren't the ones pushing for sales; they're the ones surgeons call when they have a weird case, want to think through a technique, or need a connection at another institution. That's Give to Grow in the OR.</p>
 
       <p style="font-size:13px;color:var(--gray-500);margin-top:14px;">His earlier book <i>The Snowball System</i> (2018) covers a lot of the same ground with more emphasis on the process side; <i>Give to Grow</i> is the more mindset-forward, accessible version. Both come out of his firm Bunnell Idea Group (BIG), which trains professional services firms on this methodology.</p>
 
@@ -1898,6 +1917,12 @@ function renderNotesFeed(filterTag = 'all') {
     }
     const isDeleted = !!n.deleted_at;
     const canDelete = !isDeleted && (n.rep_id === currentUser.id || isOwner);
+    const canToggleVis = !isDeleted && (n.rep_id === currentUser.id || isOwner);
+    const isShared = n.is_shared !== false; // null/undefined treat as shared default
+    const visIcon = isShared ? '🌐' : '🔒';
+    const visTitle = isShared
+      ? 'Shared with the team — tap to lock'
+      : 'Locked (only you & admins) — tap to share';
 
     // Find who deleted it (for owner view)
     let deletedByName = '';
@@ -1912,6 +1937,7 @@ function renderNotesFeed(filterTag = 'all') {
           <div class="note-card-subject">${escHtml(subjectDisplay)}${subjectBadge}</div>
           <div style="display:flex;align-items:center;gap:4px;">
             <div class="note-card-date">${dateStr}</div>
+            ${canToggleVis ? `<button class="note-vis-btn" onclick="toggleNoteVisibility(${n.id}, ${!isShared})" title="${visTitle}">${visIcon}</button>` : `<span class="note-vis-btn" style="cursor:default;" title="${visTitle}">${visIcon}</span>`}
             ${canDelete ? `<button class="note-delete-btn" onclick="softDeleteNote('${n.id}')" title="Delete note">✕</button>` : ''}
           </div>
         </div>
@@ -1963,6 +1989,33 @@ async function softDeleteNote(noteId) {
     note.deleted_by_rep_id = currentUser.id;
   }
   renderNotesFeed();
+}
+
+// ============================================================
+// VISIBILITY TOGGLE — lock/share per note
+// ============================================================
+async function toggleNoteVisibility(noteId, newIsShared) {
+  const note = allNotes.find(n => n.id === noteId);
+  if (!note) return;
+
+  // Optimistic update so the icon flips instantly
+  const prev = note.is_shared;
+  note.is_shared = newIsShared;
+  renderNotesFeed();
+
+  const { error } = await sb.rpc('update_note_visibility', {
+    p_note_id: noteId,
+    p_is_shared: newIsShared
+  });
+
+  if (error) {
+    // Revert on failure
+    note.is_shared = prev;
+    renderNotesFeed();
+    const msg = error.message || error.hint || error.details || JSON.stringify(error);
+    alert("Couldn't change visibility: " + msg);
+    console.error('toggleNoteVisibility failed:', error);
+  }
 }
 
 // ============================================================
