@@ -1131,12 +1131,12 @@
       <p>Six topic chips (Interaction, Hospital, Competition, Opportunity, Feedback, Schedule) plus three contact-type chips (<b>Meeting/Demo</b>, <b>Tend</b>, <b>Give to Grow</b>) plus Other. Use multiple freely — a surgeon demo can be <b>Meeting/Demo + Interaction + Opportunity</b>. Tag less, capture more.</p>
 
       <h4>Tend & Give to Grow — the relationship moves</h4>
-      <p>These two chips capture the relationship-building work that drives long-term growth — inspired by Mo Bunnell's <i>Snowball System</i>: small, consistent generosity compounds into trust that eventually converts into business. We track them so the team can see who's investing in which relationships and how those investments pay off.</p>
+      <p>These two chips capture the relationship-building work that drives long-term growth. We track them so the team can see who's investing in which relationships and how those investments pay off.</p>
       <ul>
         <li><b>Tend</b> — pure relationship maintenance. Coffee with Battista just to catch up. Stopping by Methodist to say hi. Not transactional, not opportunity-driven — keeping the relationship warm.</li>
-        <li><b>Give to Grow</b> — you did something FOR someone with no immediate ask attached. Examples: stayed late to help SPD fix a tray, ran an instrument over yourself when freight was late, sent a surgeon an article you knew they'd want, recommended a contractor / restaurant / specialist to OR staff, connected one contact with another who could help them, covered a colleague's case so they could make a family thing.</li>
+        <li><b>Give to Grow</b> — you gave value to someone with no ask attached: a thoughtful intro, a relevant article, time spent helping them think through a problem, a referral they needed. The "grow" comes later — naturally — because that's how reciprocity works. <a href="javascript:void(0)" onclick="showG2GModal()" style="color:var(--blue-600);font-weight:500;text-decoration:underline;">What's behind Give to Grow →</a></li>
       </ul>
-      <p style="margin-top:10px;">Both feed the "what made this relationship strong" record. The growth comes later — and it always does.</p>
+      <p style="margin-top:10px;">Both feed the "what made this relationship strong" record.</p>
 
       <h4>No friction promise</h4>
       <ul>
@@ -1148,6 +1148,45 @@
       </ul>
 
       <button type="button" class="intro-cta" onclick="dismissIntroModal()">Got it — let's go</button>
+    </div>
+  </div>
+
+  <!-- Secondary modal: Give to Grow philosophy long-form -->
+  <div id="g2gModal" class="intro-overlay" onclick="dismissG2GModal(event)">
+    <div class="intro-card" style="position:relative;" onclick="event.stopPropagation()">
+      <button type="button" class="intro-close" onclick="dismissG2GModal()" aria-label="Close">×</button>
+      <div class="intro-head">
+        <div>
+          <div class="intro-title">Give to Grow — the philosophy</div>
+          <div class="intro-sub">Mo Bunnell's BD approach, in long form.</div>
+        </div>
+      </div>
+
+      <p>Mo Bunnell's "Give to Grow" is the core philosophy behind his business development work, and it became the title of his 2024 book. The central idea is simple but cuts against how most professionals think about BD: <b>the fastest way to grow your book of business is to focus relentlessly on giving value to others, not on asking for the sale.</b></p>
+
+      <p>A few key threads in how he frames it:</p>
+
+      <h4>The mindset shift</h4>
+      <p>Most people in professional services (lawyers, consultants, advisors, sales reps) feel awkward about BD because they think of it as taking — asking for time, asking for referrals, asking for the deal. Bunnell reframes the whole activity as giving. When you lead with generosity, the relationship deepens naturally and the business follows. The discomfort largely disappears because you're not doing the thing that felt icky.</p>
+
+      <h4>What "giving" actually means</h4>
+      <p>It's not just free advice or favors. Bunnell breaks it into categories — sharing insights, making introductions, sending relevant articles or research, offering frameworks, connecting people to opportunities, even just being genuinely curious about someone's problems. The key is that the gift is relevant and tailored, not generic. A thoughtful intro to the right person beats a generic "checking in" email a hundred times.</p>
+
+      <h4>It's systematic, not random</h4>
+      <p>This is what separates Bunnell from typical "be a nice person" relationship advice. He pairs the give-to-grow mindset with disciplined process: a defined list of relationships you're investing in, regular cadence, tracked touches, and a clear sense of where each relationship is on the path from contact to client to advocate. Generosity at scale requires a system.</p>
+
+      <h4>The compounding effect</h4>
+      <p>Givers build reputations. Over years, the people you've helped remember it, refer you, hire you, and bring you into rooms you couldn't have entered on your own. The growth is non-linear — slow at first, then accelerating — which is why most people quit before it pays off.</p>
+
+      <h4>Reciprocity isn't the point — but it happens</h4>
+      <p>Bunnell is careful to distinguish this from transactional networking ("I'll help you so you'll help me"). The gift has to be freely given, no strings. But because humans are wired for reciprocity, the returns come anyway, often from unexpected directions.</p>
+
+      <h4>For Agility specifically</h4>
+      <p>This maps cleanly onto how we build with surgeons and hospital staff. The reps who win long-term aren't the ones pushing trays; they're the ones surgeons call when they have a weird case, want to think through a technique, or need a connection at another institution. That's Give to Grow in the OR.</p>
+
+      <p style="font-size:13px;color:var(--gray-500);margin-top:14px;">His earlier book <i>The Snowball System</i> (2018) covers a lot of the same ground with more emphasis on the process side; <i>Give to Grow</i> is the more mindset-forward, accessible version. Both come out of his firm Bunnell Idea Group (BIG), which trains professional services firms on this methodology.</p>
+
+      <button type="button" class="intro-cta" onclick="dismissG2GModal()">Got it</button>
     </div>
   </div>
 
@@ -1321,6 +1360,26 @@ function dismissIntroModal() {
   if (!el) return;
   el.classList.remove('open');
   markIntroSeen();
+}
+
+// Secondary modal: Give to Grow philosophy long-form
+function showG2GModal() {
+  const el = document.getElementById('g2gModal');
+  if (!el) return;
+  el.classList.add('open');
+  const card = el.querySelector('.intro-card');
+  if (card) card.scrollTop = 0;
+}
+function dismissG2GModal(event) {
+  // Backdrop click should dismiss; inner card already stops propagation.
+  if (event && event.target && event.target.id !== 'g2gModal' && event.type === 'click') {
+    // event came from a child element (not the backdrop) — ignore unless it's the close/CTA button
+    // which calls dismissG2GModal() directly with no event arg
+    if (!event.target.matches('.intro-close, .intro-cta')) return;
+  }
+  const el = document.getElementById('g2gModal');
+  if (!el) return;
+  el.classList.remove('open');
 }
 
 function showLoading(show) {
