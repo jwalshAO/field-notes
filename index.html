@@ -175,6 +175,7 @@
       min-height: 140px;
       resize: vertical;
       line-height: 1.5;
+      font-family: inherit;
     }
 
     /* Autocomplete */
@@ -879,7 +880,7 @@
       <!-- Step 1: Email -->
       <div id="loginStep1">
         <h2>Sign in with your email</h2>
-        <input type="email" id="loginEmail" class="form-input" placeholder="you@agilityortho.com" autocomplete="email" autofocus>
+        <input type="email" id="loginEmail" class="form-input" placeholder="you@agilityortho.com" autocomplete="email" maxlength="254" autofocus>
         <button class="btn-submit" style="margin-top:12px;" onclick="sendOTP()">Send Code</button>
         <div id="loginError1" class="login-error" style="display:none;"></div>
       </div>
@@ -940,7 +941,7 @@
           <div id="draftsBanner" class="drafts-banner" style="display:none;"></div>
           <div id="chatThread" class="chat-thread" aria-live="polite"></div>
           <div class="chat-composer">
-            <input type="text" id="chatInput" class="chat-input" placeholder="Tap mic or type..." oninput="updateComposerButton()" onkeydown="if(event.key==='Enter'){event.preventDefault();sendText();}" />
+            <input type="text" id="chatInput" class="chat-input" placeholder="Tap mic or type..." maxlength="5000" oninput="updateComposerButton()" onkeydown="if(event.key==='Enter'){event.preventDefault();sendText();}" />
             <button type="button" id="micBtn" class="mic-btn" onclick="toggleRecording()" aria-label="Record voice">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             </button>
@@ -967,7 +968,7 @@
           <div class="form-group">
             <label class="form-label">Subject</label>
             <div class="autocomplete-wrapper">
-              <input type="text" id="subjectInput" class="form-input" placeholder="Surgeon, hospital, competitor, manufacturer..." autocomplete="off">
+              <input type="text" id="subjectInput" class="form-input" placeholder="Surgeon, hospital, competitor, manufacturer..." maxlength="200" autocomplete="off">
               <div id="autocompleteList" class="autocomplete-list"></div>
             </div>
             <!-- subject selection stored in JS selectedSubject variable -->
@@ -991,12 +992,12 @@
 
           <div class="form-group">
             <label class="form-label">Notes</label>
-            <textarea id="noteBody" class="form-input" placeholder="All info is good info — what days a surgeon is where (to build out a calendar), what a surgeon uses, her preferences, things you overheard in the OR, something a Synthes rep tells you, something you observe..." required></textarea>
+            <textarea id="noteBody" class="form-input" maxlength="10000" placeholder="All info is good info — what days a surgeon is where (to build out a calendar), what a surgeon uses, her preferences, things you overheard in the OR, something a Synthes rep tells you, something you observe..." required></textarea>
           </div>
 
           <div class="form-group">
             <label class="form-label">Next Action (optional)</label>
-            <textarea id="nextAction" class="form-input" rows="3" style="min-height:auto;resize:none;" placeholder="Setup next &quot;touch&quot;, email link/video, text dates to next lab, get dates for a demo, setup lunch, etc..."></textarea>
+            <textarea id="nextAction" class="form-input" rows="3" maxlength="2000" style="min-height:auto;resize:none;" placeholder="Setup next &quot;touch&quot;, email link/video, text dates to next lab, get dates for a demo, setup lunch, etc..."></textarea>
           </div>
 
           <div id="photoPreviewRow" style="display:none;margin-bottom:16px;">
@@ -1420,18 +1421,21 @@ async function sendOTP() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>';
 
-  const { error } = await sb.auth.signInWithOtp({ email });
-
-  btn.disabled = false;
-  btn.textContent = 'Send Code';
-
-  if (error) {
-    showLoginError(1, error.message);
-    return;
+  try {
+    const { error } = await sb.auth.signInWithOtp({ email });
+    if (error) {
+      showLoginError(1, error.message);
+      return;
+    }
+    document.getElementById('loginEmailHint').textContent = 'Check ' + email + ' for an 8-digit code';
+    showStep2();
+  } catch (err) {
+    // Network failure / throw — without this catch the button would be stuck spinning forever
+    showLoginError(1, 'Network error — try again. ' + (err.message || ''));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send Code';
   }
-
-  document.getElementById('loginEmailHint').textContent = 'Check ' + email + ' for an 8-digit code';
-  showStep2();
 }
 
 async function verifyOTP() {
@@ -1444,18 +1448,20 @@ async function verifyOTP() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>';
 
-  const { data, error } = await sb.auth.verifyOtp({ email, token: code, type: 'email' });
-
-  btn.disabled = false;
-  btn.textContent = 'Verify';
-
-  if (error) {
-    showLoginError(2, error.message);
-    return;
+  try {
+    const { data, error } = await sb.auth.verifyOtp({ email, token: code, type: 'email' });
+    if (error) {
+      showLoginError(2, error.message);
+      return;
+    }
+    // Auth state change listener will handle the rest
+    showLoading(true);
+  } catch (err) {
+    showLoginError(2, 'Network error — try again. ' + (err.message || ''));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Verify';
   }
-
-  // Auth state change listener will handle the rest
-  showLoading(true);
 }
 
 // Handle Enter key on inputs
@@ -1581,6 +1587,10 @@ function buildSubjectResults(q) {
   return results;
 }
 
+// Holds the current autocomplete results so click handlers can read them by data-index
+// without embedding JSON inside HTML attributes (the old pattern broke on names with `<`)
+let acCurrentResults = [];
+
 subjectInput.addEventListener('input', function() {
   const q = this.value.trim().toLowerCase();
   selectedSubject = null;
@@ -1589,17 +1599,30 @@ subjectInput.addEventListener('input', function() {
   if (q.length < 2) { acList.classList.remove('open'); return; }
 
   const results = buildSubjectResults(q);
+  acCurrentResults = results;
 
   let html = results.map((r, i) => `
-    <div class="autocomplete-item" data-index="${i}" onclick='selectSubject(${JSON.stringify({type:r.type,id:r.id,display:r.display}).replace(/'/g, "&#39;")})'>
+    <div class="autocomplete-item" data-index="${i}">
       <div class="ac-name">${highlightMatch(r.display, q)}<span class="ac-badge ${r.badgeClass}">${r.badge}</span></div>
       ${r.detail ? `<div class="ac-detail">${escHtml(r.detail)}</div>` : ''}
     </div>
   `).join('');
 
-  html += `<div class="autocomplete-freeform" onclick="useFreeform()">Use "${escHtml(this.value)}" as-is</div>`;
+  html += `<div class="autocomplete-freeform" data-action="freeform">Use "${escHtml(this.value)}" as-is</div>`;
 
   acList.innerHTML = html;
+
+  // Wire click handlers from the closure instead of via inline onclick
+  acList.querySelectorAll('.autocomplete-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.dataset.index, 10);
+      const r = acCurrentResults[idx];
+      if (r) selectSubject({ type: r.type, id: r.id, display: r.display });
+    });
+  });
+  const freeform = acList.querySelector('.autocomplete-freeform');
+  if (freeform) freeform.addEventListener('click', useFreeform);
+
   acList.classList.add('open');
 });
 
@@ -1703,8 +1726,9 @@ function removePhoto(e) {
 }
 
 async function uploadPhoto(file) {
-  const ext = file.name.split('.').pop() || 'jpg';
-  const fileName = `${currentUser.id}/${Date.now()}.${ext}`;
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 5) || 'jpg';
+  const uniq = (crypto.randomUUID && crypto.randomUUID()) || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const fileName = `${currentUser.id}/${uniq}.${ext}`;
 
   const { data, error } = await sb.storage
     .from('field-intel-photos')
@@ -1752,7 +1776,8 @@ async function submitNote(e) {
       tags: selectedTags,
       note_date: document.getElementById('noteDate').value,
       next_action: nextAction || null,
-      photo_url: photoUrl
+      photo_url: photoUrl,
+      status: 'submitted',
     };
 
     const { error } = await sb.from('field_notes').insert([noteData]);
@@ -1963,21 +1988,29 @@ async function saveNewSurgeon() {
 
   if (!first || !last) { alert('Please enter first and last name'); return; }
 
-  const { data, error } = await sb.from('surgeons').insert([{
-    first_name: first,
-    last_name: last,
-    primary_hospital: hospital || null,
-    status: 'prospect',
-    funnel_stage: 'prospect'
-  }]).select().single();
+  // Disable Save while insert is in flight — was double-creating surgeons on rapid taps
+  const btn = document.querySelector('#addSurgeonModal .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
-  if (error) { alert('Error: ' + error.message); return; }
+  try {
+    const { data, error } = await sb.from('surgeons').insert([{
+      first_name: first,
+      last_name: last,
+      primary_hospital: hospital || null,
+      status: 'prospect',
+      funnel_stage: 'prospect'
+    }]).select().single();
 
-  allSurgeons.push(data);
-  allSurgeons.sort((a, b) => a.last_name.localeCompare(b.last_name));
-  const displayName = data.last_name + ', ' + data.first_name + (data.credential ? ', ' + data.credential : '');
-  selectSubject({ type: 'surgeon', id: data.id, display: displayName });
-  closeAddSurgeon();
+    if (error) { alert('Error: ' + error.message); return; }
+
+    allSurgeons.push(data);
+    allSurgeons.sort((a, b) => a.last_name.localeCompare(b.last_name));
+    const displayName = data.last_name + ', ' + data.first_name + (data.credential ? ', ' + data.credential : '');
+    selectSubject({ type: 'surgeon', id: data.id, display: displayName });
+    closeAddSurgeon();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save Surgeon'; }
+  }
 }
 
 // ============================================================
@@ -2037,8 +2070,8 @@ function renderTeamStats(rows) {
 // HELPERS
 // ============================================================
 function escHtml(str) {
-  if (!str) return '';
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  if (str == null) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function formatDate(dateStr) {
@@ -2311,7 +2344,7 @@ function renderDraftsBanner() {
       </div>`;
   }).join('');
   const word = myDrafts.length === 1 ? 'note' : 'notes';
-  banner.innerHTML = `<div class="drafts-banner-title">Unfinished ${myDrafts.length} ${word}</div>${rows}`;
+  banner.innerHTML = `<div class="drafts-banner-title">${myDrafts.length} unfinished ${word}</div>${rows}`;
   banner.style.display = '';
 }
 
@@ -2764,14 +2797,22 @@ function closeConfirmModal(e) {
 
 async function finalizeNote() {
   const btn = document.getElementById('confirmSubmitBtn');
+
+  const parsed = parsedNoteDraft || {};
+  const subjectText = document.getElementById('confirmSubject').value.trim();
+  const noteBody = document.getElementById('confirmNoteBody').value.trim();
+  const nextAction = document.getElementById('confirmNextAction').value.trim();
+
+  // Don't save empty notes — was silently creating junk rows on stray Submit clicks
+  if (!subjectText && !noteBody) {
+    alert('Add a subject or some notes first.');
+    return;
+  }
+
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>';
 
   try {
-    const parsed = parsedNoteDraft || {};
-    const subjectText = document.getElementById('confirmSubject').value.trim();
-    const noteBody = document.getElementById('confirmNoteBody').value.trim();
-    const nextAction = document.getElementById('confirmNextAction').value.trim();
 
     const mergedTags = Array.from(new Set([
       ...(Array.isArray(confirmSelectedTags) ? confirmSelectedTags : []),
@@ -2840,7 +2881,7 @@ async function celebrateSubmission() {
       .select('id', { count: 'exact', head: true })
       .eq('rep_id', currentUser.id)
       .eq('status', 'submitted')
-      .or('is_test.is.null,is_test.eq.false');
+      .eq('is_test', false);
     if (error) throw error;
     const n = count || 0;
 
@@ -2853,7 +2894,7 @@ async function celebrateSubmission() {
       .eq('rep_id', currentUser.id)
       .eq('status', 'submitted')
       .gte('created_at', startOfToday.toISOString())
-      .or('is_test.is.null,is_test.eq.false');
+      .eq('is_test', false);
     const today = todayCount || 0;
 
     const lifetimeMilestone = (n === 1) || (n > 0 && n % 5 === 0);
