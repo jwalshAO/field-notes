@@ -1092,6 +1092,16 @@
         <div id="confirmSubjectMeta" style="font-size:11px;color:var(--gray-500);margin-top:4px;"></div>
       </div>
       <div class="form-group">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--gray-300);border-radius:10px;background:var(--white);">
+          <span style="font-weight:600;font-size:14px;color:var(--gray-900);">Private</span>
+          <button type="button" role="switch" aria-checked="false" id="confirmVisSwitch" aria-label="Make this note private" onclick="toggleConfirmVisibility()"
+                  style="position:relative;flex-shrink:0;width:46px;height:26px;border:none;border-radius:999px;cursor:pointer;padding:0;transition:background .2s;background:var(--gray-300);">
+            <span id="confirmVisKnob" style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s;"></span>
+          </button>
+        </div>
+        <div id="confirmVisSub" style="font-size:11px;color:var(--gray-500);margin-top:6px;padding:0 2px;"></div>
+      </div>
+      <div class="form-group">
         <label class="form-label">Tags</label>
         <div class="tags-row" id="confirmTags"></div>
       </div>
@@ -1102,16 +1112,6 @@
       <div class="form-group">
         <label class="form-label">Next Action</label>
         <textarea id="confirmNextAction" class="form-input" rows="2" style="min-height:auto;resize:none;"></textarea>
-      </div>
-      <div class="form-group" style="margin-top:-4px;">
-        <div id="confirmVisibilityRow" onclick="toggleConfirmVisibility()"
-             style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--gray-300);border-radius:10px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;background:var(--white);">
-          <span id="confirmVisIcon" style="font-size:20px;line-height:1;">🌐</span>
-          <div style="flex:1;">
-            <div id="confirmVisLabel" style="font-weight:600;font-size:14px;color:var(--gray-900);">Shared with the team</div>
-            <div id="confirmVisSub" style="font-size:11px;color:var(--gray-500);margin-top:2px;">Tap to lock — only you & admins will see it</div>
-          </div>
-        </div>
       </div>
       <div style="display:flex;gap:10px;margin-top:16px;">
         <button type="button" class="btn-submit" style="flex:1;background:var(--gray-200);color:var(--gray-700);" onclick="closeConfirmModalBack()">Back to chat</button>
@@ -1807,6 +1807,8 @@ async function submitNote(e) {
       next_action: nextAction || null,
       photo_url: photoUrl,
       status: 'submitted',
+      // Form fallback has no toggle — respect the rep's default visibility (owner = private).
+      is_shared: (typeof currentUser?.default_notes_shared === 'boolean') ? currentUser.default_notes_shared : true,
     };
 
     const { error } = await sb.from('field_notes').insert([noteData]);
@@ -2844,19 +2846,17 @@ function showConfirmModal(parsed) {
 }
 
 function renderConfirmVisibility() {
-  const icon = document.getElementById('confirmVisIcon');
-  const label = document.getElementById('confirmVisLabel');
+  const sw = document.getElementById('confirmVisSwitch');
+  const knob = document.getElementById('confirmVisKnob');
   const sub = document.getElementById('confirmVisSub');
-  if (!icon) return;
-  if (confirmIsShared) {
-    icon.textContent = '🌐';
-    label.textContent = 'Shared with the team';
-    sub.textContent = 'Tap to lock — only you & admins will see it';
-  } else {
-    icon.textContent = '🔒';
-    label.textContent = 'Locked — only you & admins';
-    sub.textContent = 'Tap to share with the team';
-  }
+  if (!sw) return;
+  const isPrivate = !confirmIsShared;
+  sw.setAttribute('aria-checked', isPrivate ? 'true' : 'false');
+  sw.style.background = isPrivate ? '#2563eb' : 'var(--gray-300)';
+  knob.style.transform = isPrivate ? 'translateX(20px)' : 'translateX(0)';
+  sub.textContent = isPrivate
+    ? '🔒 This note won’t be shared with the team — only you & admins can see it.'
+    : '👥 Shared with the team.';
 }
 
 function toggleConfirmVisibility() {
