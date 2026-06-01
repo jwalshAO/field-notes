@@ -571,6 +571,48 @@
     .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
     .modal-actions { display: flex; gap: 12px; margin-top: 16px; }
 
+    /* Confirm-and-edit — full-screen page (V4.3.0) */
+    .confirm-page {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--white);
+      z-index: 350;
+      flex-direction: column;
+    }
+    .confirm-page.open { display: flex; animation: confirmIn 0.24s ease; }
+    @keyframes confirmIn {
+      from { transform: translateY(16px); opacity: 0; }
+      to   { transform: translateY(0); opacity: 1; }
+    }
+    .confirm-topbar {
+      display: flex; align-items: center; gap: 10px;
+      padding: calc(14px + env(safe-area-inset-top)) 14px 12px;
+      border-bottom: 1px solid var(--gray-200);
+      flex-shrink: 0;
+    }
+    .confirm-back {
+      background: none; border: none; cursor: pointer;
+      font-size: 15px; font-weight: 600; color: var(--blue-600);
+      padding: 4px 2px;
+    }
+    .confirm-title {
+      font-size: 16px; font-weight: 700; color: var(--gray-900);
+      margin: 0 auto;
+    }
+    .confirm-topbar-spacer { width: 52px; flex-shrink: 0; }
+    .confirm-scroll {
+      flex: 1; overflow-y: auto;
+      padding: 18px 16px 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .confirm-footer {
+      padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+      border-top: 1px solid var(--gray-200);
+      background: var(--white);
+      flex-shrink: 0;
+    }
+
     /* Intro modal — first-time rep explainer */
     .intro-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55);
@@ -1082,10 +1124,14 @@
   </div>
 
   <!-- FULL-SCREEN PHOTO VIEWER -->
-  <!-- CONFIRM-AND-EDIT MODAL (V4 conversational capture) -->
-  <div id="confirmModal" class="modal-overlay" onclick="closeConfirmModal(event)">
-    <div class="modal" onclick="event.stopPropagation()">
-      <h3 style="margin-bottom:14px;">Confirm note</h3>
+  <!-- CONFIRM-AND-EDIT PAGE (V4.3.0 full-screen) -->
+  <div id="confirmModal" class="confirm-page">
+    <div class="confirm-topbar">
+      <button type="button" class="confirm-back" onclick="closeConfirmModalBack()">‹ Back</button>
+      <span class="confirm-title">Confirm note</span>
+      <span class="confirm-topbar-spacer"></span>
+    </div>
+    <div class="confirm-scroll">
       <div class="form-group">
         <label class="form-label">Subject</label>
         <input type="text" id="confirmSubject" class="form-input" />
@@ -1113,10 +1159,9 @@
         <label class="form-label">Next Action</label>
         <textarea id="confirmNextAction" class="form-input" rows="2" style="min-height:auto;resize:none;"></textarea>
       </div>
-      <div style="display:flex;gap:10px;margin-top:16px;">
-        <button type="button" class="btn-submit" style="flex:1;background:var(--gray-200);color:var(--gray-700);" onclick="closeConfirmModalBack()">Back to chat</button>
-        <button type="button" class="btn-submit" id="confirmSubmitBtn" style="flex:2;" onclick="finalizeNote()">Submit</button>
-      </div>
+    </div>
+    <div class="confirm-footer">
+      <button type="button" class="btn-submit" id="confirmSubmitBtn" onclick="finalizeNote()">Submit note</button>
     </div>
   </div>
 
@@ -2881,11 +2926,6 @@ function renderConfirmTags() {
 }
 
 function closeConfirmModalBack() {
-  document.getElementById('confirmModal').classList.remove('open');
-}
-
-function closeConfirmModal(e) {
-  if (e && e.target.id !== 'confirmModal') return;
   document.getElementById('confirmModal').classList.remove('open');
 }
 
