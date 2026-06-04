@@ -2032,7 +2032,7 @@ function renderNotesFeed(filterTag = 'all') {
     const visIcon = isShared ? '🌐' : '🔒';
     const visTitle = isShared
       ? 'Shared with the team — tap to lock'
-      : 'Locked (only you & admins) — tap to share';
+      : 'Private (only you) — tap to share';
 
     // Find who deleted it (for owner view)
     let deletedByName = '';
@@ -2941,7 +2941,7 @@ function showConfirmModal(parsed) {
 }
 
 const VIS_OPTS = {
-  private: { bg:'#2563eb', sub:'🔒 Private — only you & admins can see this.' },
+  private: { bg:'#2563eb', sub:'🔒 Private — only you can see this.' },
   team:    { bg:'#059669', sub:'👥 Team — your team can see this (default).' },
   ao:      { bg:'#4f46e5', sub:'🌐 AO — shared with every team across Agility.' },
 };
