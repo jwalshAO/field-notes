@@ -1069,6 +1069,19 @@
             <textarea id="nextAction" class="form-input" rows="3" maxlength="2000" style="min-height:auto;resize:none;" placeholder="Setup next &quot;touch&quot;, email link/video, text dates to next lab, get dates for a demo, setup lunch, etc..."></textarea>
           </div>
 
+          <div class="form-group">
+            <label class="form-label">Who can see this</label>
+            <div id="formVisSeg" style="display:flex;gap:6px;">
+              <button type="button" data-vis="private" onclick="setFormVisibility('private')"
+                      style="flex:1;padding:9px 6px;border:1px solid var(--gray-300);border-radius:10px;background:var(--white);font-size:13px;cursor:pointer;transition:all .15s;">🔒 Private</button>
+              <button type="button" data-vis="team" onclick="setFormVisibility('team')"
+                      style="flex:1;padding:9px 6px;border:1px solid var(--gray-300);border-radius:10px;background:var(--white);font-size:13px;cursor:pointer;transition:all .15s;">👥 Team</button>
+              <button type="button" data-vis="ao" onclick="setFormVisibility('ao')"
+                      style="flex:1;padding:9px 6px;border:1px solid var(--gray-300);border-radius:10px;background:var(--white);font-size:13px;cursor:pointer;transition:all .15s;">🌐 AO</button>
+            </div>
+            <div id="formVisSub" style="font-size:11px;color:var(--gray-500);margin-top:6px;padding:0 2px;"></div>
+          </div>
+
           <div id="photoPreviewRow" style="display:none;margin-bottom:16px;">
             <div style="position:relative;display:inline-block;">
               <img id="photoPreview" style="max-width:100%;max-height:160px;border-radius:8px;object-fit:cover;">
@@ -1148,12 +1161,14 @@
         <div id="confirmSubjectMeta" style="font-size:11px;color:var(--gray-500);margin-top:4px;"></div>
       </div>
       <div class="form-group">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--gray-300);border-radius:10px;background:var(--white);">
-          <span style="font-weight:600;font-size:14px;color:var(--gray-900);">Private</span>
-          <button type="button" role="switch" aria-checked="false" id="confirmVisSwitch" aria-label="Make this note private" onclick="toggleConfirmVisibility()"
-                  style="position:relative;flex-shrink:0;width:46px;height:26px;border:none;border-radius:999px;cursor:pointer;padding:0;transition:background .2s;background:var(--gray-300);">
-            <span id="confirmVisKnob" style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s;"></span>
-          </button>
+        <label class="form-label">Who can see this</label>
+        <div id="confirmVisSeg" style="display:flex;gap:6px;">
+          <button type="button" class="vis-seg" data-vis="private" onclick="setConfirmVisibility('private')"
+                  style="flex:1;padding:9px 6px;border:1px solid var(--gray-300);border-radius:10px;background:var(--white);font-size:13px;cursor:pointer;transition:all .15s;">🔒 Private</button>
+          <button type="button" class="vis-seg" data-vis="team" onclick="setConfirmVisibility('team')"
+                  style="flex:1;padding:9px 6px;border:1px solid var(--gray-300);border-radius:10px;background:var(--white);font-size:13px;cursor:pointer;transition:all .15s;">👥 Team</button>
+          <button type="button" class="vis-seg" data-vis="ao" onclick="setConfirmVisibility('ao')"
+                  style="flex:1;padding:9px 6px;border:1px solid var(--gray-300);border-radius:10px;background:var(--white);font-size:13px;cursor:pointer;transition:all .15s;">🌐 AO</button>
         </div>
         <div id="confirmVisSub" style="font-size:11px;color:var(--gray-500);margin-top:6px;padding:0 2px;"></div>
       </div>
@@ -1406,6 +1421,8 @@ async function loadRepsAndLogin() {
     if (t) t.style.display = '';
   }
   document.getElementById('noteDate').value = new Date().toISOString().split('T')[0];
+  formVisibility = repDefaultVisibility();
+  renderFormVisibility();
 
   loadSubjectEntities();
   loadNotes();
@@ -1886,8 +1903,8 @@ async function submitNote(e) {
       photo_url: photoUrl,
       status: 'submitted',
       capture_mode: 'form',
-      // Form fallback has no toggle — respect the rep's default visibility (owner = private).
-      is_shared: (typeof currentUser?.default_notes_shared === 'boolean') ? currentUser.default_notes_shared : true,
+      // V4.4.0: author picks the tier (private/team/ao); is_shared derived by trigger.
+      visibility: formVisibility,
     };
 
     const { error } = await sb.from('field_notes').insert([noteData]);
@@ -1906,6 +1923,8 @@ async function submitNote(e) {
     selectedTags = [];
     selectedSubject = null;
     selectedPhoto = null;
+    formVisibility = repDefaultVisibility();
+    renderFormVisibility();
     document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
     document.getElementById('photoPreviewRow').style.display = 'none';
     document.querySelector('.camera-btn').classList.remove('has-photo');
@@ -2889,7 +2908,7 @@ function blobToBase64(blob) {
 // ============================================================
 const TAG_LIST = ['Interaction','Hospital','Competition','Opportunity','Feedback','Schedule','Observation','Meeting/Demo','Tend','Give to Grow'];
 let confirmSelectedTags = [];
-let confirmIsShared = true; // V4.1.9: rep visibility choice — initialized per rep default in showConfirmModal
+let confirmVisibility = 'team'; // V4.4.0: 3-state author choice (private/team/ao) — initialized in showConfirmModal
 
 function showConfirmModal(parsed) {
   document.getElementById('confirmSubject').value = parsed.subject_text || '';
@@ -2905,36 +2924,73 @@ function showConfirmModal(parsed) {
   if (pendingChipTag && !confirmSelectedTags.includes(pendingChipTag)) {
     confirmSelectedTags.unshift(pendingChipTag);
   }
-  // V4.1.9: visibility default — use draft's existing value if resuming, else rep default
-  if (typeof parsed.is_shared === 'boolean') {
-    confirmIsShared = parsed.is_shared;
+  // V4.4.0: visibility default — resume the draft's saved tier, else map the rep
+  // default, else Team. AO is never a default; it's an explicit author choice.
+  if (parsed.visibility === 'private' || parsed.visibility === 'team' || parsed.visibility === 'ao') {
+    confirmVisibility = parsed.visibility;
+  } else if (typeof parsed.is_shared === 'boolean') {
+    confirmVisibility = parsed.is_shared ? 'team' : 'private';
   } else if (currentUser && typeof currentUser.default_notes_shared === 'boolean') {
-    confirmIsShared = currentUser.default_notes_shared;
+    confirmVisibility = currentUser.default_notes_shared ? 'team' : 'private';
   } else {
-    confirmIsShared = true;
+    confirmVisibility = 'team';
   }
   renderConfirmTags();
   renderConfirmVisibility();
   document.getElementById('confirmModal').classList.add('open');
 }
 
-function renderConfirmVisibility() {
-  const sw = document.getElementById('confirmVisSwitch');
-  const knob = document.getElementById('confirmVisKnob');
-  const sub = document.getElementById('confirmVisSub');
-  if (!sw) return;
-  const isPrivate = !confirmIsShared;
-  sw.setAttribute('aria-checked', isPrivate ? 'true' : 'false');
-  sw.style.background = isPrivate ? '#2563eb' : 'var(--gray-300)';
-  knob.style.transform = isPrivate ? 'translateX(20px)' : 'translateX(0)';
-  sub.textContent = isPrivate
-    ? '🔒 This note won’t be shared with the team — only you & admins can see it.'
-    : '👥 Shared with the team.';
+const VIS_OPTS = {
+  private: { bg:'#2563eb', sub:'🔒 Private — only you & admins can see this.' },
+  team:    { bg:'#059669', sub:'👥 Team — your team can see this (default).' },
+  ao:      { bg:'#4f46e5', sub:'🌐 AO — shared with every team across Agility.' },
+};
+
+// Shared renderer for both the chat-confirm and form visibility pickers.
+function renderVisSeg(segId, subId, value) {
+  const seg = document.getElementById(segId);
+  const sub = document.getElementById(subId);
+  if (!seg) return;
+  seg.querySelectorAll('button[data-vis]').forEach(b => {
+    const v = b.getAttribute('data-vis');
+    const on = v === value;
+    b.style.background = on ? VIS_OPTS[v].bg : 'var(--white)';
+    b.style.color = on ? '#fff' : 'var(--gray-600)';
+    b.style.borderColor = on ? VIS_OPTS[v].bg : 'var(--gray-300)';
+    b.style.fontWeight = on ? '700' : '500';
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  if (sub) sub.textContent = (VIS_OPTS[value] || VIS_OPTS.team).sub;
 }
 
-function toggleConfirmVisibility() {
-  confirmIsShared = !confirmIsShared;
+function renderConfirmVisibility() {
+  renderVisSeg('confirmVisSeg', 'confirmVisSub', confirmVisibility);
+}
+
+function setConfirmVisibility(v) {
+  if (!VIS_OPTS[v]) return;
+  confirmVisibility = v;
   renderConfirmVisibility();
+}
+
+// Form-mode (default capture) visibility picker.
+let formVisibility = 'team';
+
+function repDefaultVisibility() {
+  if (currentUser && typeof currentUser.default_notes_shared === 'boolean') {
+    return currentUser.default_notes_shared ? 'team' : 'private';
+  }
+  return 'team';
+}
+
+function renderFormVisibility() {
+  renderVisSeg('formVisSeg', 'formVisSub', formVisibility);
+}
+
+function setFormVisibility(v) {
+  if (!VIS_OPTS[v]) return;
+  formVisibility = v;
+  renderFormVisibility();
 }
 
 function renderConfirmTags() {
@@ -2995,8 +3051,9 @@ async function finalizeNote() {
       next_action: nextAction || null,
       status: 'submitted',
       capture_mode: 'chat',
-      // V4.1.9: visibility chosen on confirm screen (overrides DB trigger default)
-      is_shared: !!confirmIsShared,
+      // V4.4.0: 3-state visibility chosen on confirm screen (private/team/ao).
+      // is_shared is derived by the field_notes_sync_visibility trigger.
+      visibility: confirmVisibility,
       // V4.0.19: bump draft_updated_at on submit so the Team stats use the
       // actual submission time (not whenever the draft row was first created).
       draft_updated_at: new Date().toISOString(),
