@@ -768,6 +768,14 @@
     /* V4 — Q chat mode */
     .mode-bar { display: flex; justify-content: flex-end; margin-bottom: 8px; align-items: center; }
     .mode-bar-q { font-size: 12px; color: var(--gray-500); flex: 1; font-weight: 600; letter-spacing: 0.3px; }
+    /* Chat | Form segmented toggle */
+    .mode-seg { display: inline-flex; background: var(--gray-100); border-radius: 9px; padding: 2px; gap: 2px; -webkit-tap-highlight-color: transparent; }
+    .mode-seg-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 13px; font-weight: 600; color: var(--gray-500);
+      padding: 5px 16px; border-radius: 7px; transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    }
+    .mode-seg-btn.active { background: #fff; color: var(--blue-600); box-shadow: 0 1px 2px rgba(0,0,0,0.10); }
     .mode-link {
       background: none; border: none; color: var(--gray-500);
       font-size: 13px; font-weight: 500; cursor: pointer; padding: 6px 10px;
@@ -987,11 +995,13 @@
       <div id="screen-new" class="screen active">
         <!-- Mode toggle bar -->
         <div class="mode-bar" id="modeBar">
-          <div class="mode-bar-q" id="modeBarLabel">Q</div>
+          <div class="mode-seg" id="modeSeg" role="tablist" aria-label="Capture mode">
+            <button type="button" class="mode-seg-btn active" id="segChat" role="tab" aria-selected="true" onclick="setMode('chat')">Chat</button>
+            <button type="button" class="mode-seg-btn" id="segForm" role="tab" aria-selected="false" onclick="setMode('form')">Form</button>
+          </div>
           <div style="margin-left:auto;display:flex;gap:14px;align-items:center;">
             <button type="button" class="mode-link" id="newNoteLink" onclick="startNewNote()" style="background:none;border:none;color:#2563eb;font-size:13px;cursor:pointer;padding:0;">↻ New</button>
             <button type="button" class="help-btn" id="introHelpBtn" onclick="showIntroModal(true)" aria-label="What is Field Notes">?</button>
-            <button type="button" class="mode-link" id="modeToggleLink" onclick="toggleMode()">Use form ▸</button>
           </div>
         </div>
 
@@ -1180,6 +1190,9 @@
       <p>Chat with <b>Q</b> by voice or text, hit <b>Done</b>, and your note flows into <b>the team dossier</b>. Every note you submit makes the whole team smarter — facts get pulled out and surfaced on every surgeon, hospital, manufacturer, and competitor page in the CRM.</p>
 
       <p style="margin-top:-4px;font-size:13px;color:var(--gray-500);font-style:italic;">Why "Q"? After Bond's <b>Q-Branch</b> — your technical sidekick in the field. In and out, no theatrics. Reps are the agents; Q hands you the gear and gets out of your way.</p>
+
+      <h4>Chat or Form — your call</h4>
+      <p>Prefer not to chat? Tap <b>Form</b> in the toggle up top for a classic fill-in-the-blanks note. The app remembers your choice and opens that way next time.</p>
 
       <h4>What to capture — go wide</h4>
       <p>Everything is intel. Don't filter yourself.</p>
@@ -1397,6 +1410,7 @@ async function loadRepsAndLogin() {
   loadSubjectEntities();
   loadNotes();
   initChat();
+  applySavedCaptureMode();
   loadDrafts();
   showIntroIfFirstTime();
 }
@@ -1417,6 +1431,20 @@ function markIntroSeen() {
 function showIntroIfFirstTime() {
   if (introWasSeen()) return;
   showIntroModal(false);
+}
+// Per-rep, per-device capture-mode memory ('chat' | 'form')
+const CAPTURE_MODE_KEY = 'fn_capture_mode';
+function savedCaptureMode() {
+  if (!currentUser?.id) return null;
+  try { return localStorage.getItem(CAPTURE_MODE_KEY + '_' + currentUser.id); }
+  catch { return null; }
+}
+function saveCaptureMode(mode) {
+  if (!currentUser?.id) return;
+  try { localStorage.setItem(CAPTURE_MODE_KEY + '_' + currentUser.id, mode); } catch {}
+}
+function applySavedCaptureMode() {
+  if (savedCaptureMode() === 'form') setMode('form');
 }
 function showIntroModal(manual) {
   const el = document.getElementById('introModal');
@@ -2597,24 +2625,18 @@ async function startNewNote() {
   await loadDrafts();
 }
 
-function toggleMode() {
-  const chat = document.getElementById('chatMode');
-  const form = document.getElementById('noteForm');
-  const link = document.getElementById('modeToggleLink');
-  const label = document.getElementById('modeBarLabel');
-  if (chatMode === 'chat') {
-    chat.style.display = 'none';
-    form.style.display = '';
-    link.textContent = '◂ Talk to Q';
-    label.textContent = 'Form';
-    chatMode = 'form';
-  } else {
-    chat.style.display = '';
-    form.style.display = 'none';
-    link.textContent = 'Use form ▸';
-    label.textContent = 'Q';
-    chatMode = 'chat';
-  }
+function setMode(mode) {
+  const isForm = mode === 'form';
+  document.getElementById('chatMode').style.display = isForm ? 'none' : '';
+  document.getElementById('noteForm').style.display = isForm ? '' : 'none';
+  const segChat = document.getElementById('segChat');
+  const segForm = document.getElementById('segForm');
+  segChat.classList.toggle('active', !isForm);
+  segForm.classList.toggle('active', isForm);
+  segChat.setAttribute('aria-selected', String(!isForm));
+  segForm.setAttribute('aria-selected', String(isForm));
+  chatMode = mode;
+  saveCaptureMode(mode);
 }
 
 function appendChatBubble(role, text) {
