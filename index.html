@@ -996,8 +996,8 @@
         <!-- Mode toggle bar -->
         <div class="mode-bar" id="modeBar">
           <div class="mode-seg" id="modeSeg" role="tablist" aria-label="Capture mode">
-            <button type="button" class="mode-seg-btn active" id="segChat" role="tab" aria-selected="true" onclick="setMode('chat')">Chat</button>
-            <button type="button" class="mode-seg-btn" id="segForm" role="tab" aria-selected="false" onclick="setMode('form')">Form</button>
+            <button type="button" class="mode-seg-btn active" id="segForm" role="tab" aria-selected="true" onclick="setMode('form')">Form</button>
+            <button type="button" class="mode-seg-btn" id="segChat" role="tab" aria-selected="false" onclick="setMode('chat')">Chat</button>
           </div>
           <div style="margin-left:auto;display:flex;gap:14px;align-items:center;">
             <button type="button" class="mode-link" id="newNoteLink" onclick="startNewNote()" style="background:none;border:none;color:#2563eb;font-size:13px;cursor:pointer;padding:0;">↻ New</button>
@@ -1191,8 +1191,8 @@
 
       <p style="margin-top:-4px;font-size:13px;color:var(--gray-500);font-style:italic;">Why "Q"? After Bond's <b>Q-Branch</b> — your technical sidekick in the field. In and out, no theatrics. Reps are the agents; Q hands you the gear and gets out of your way.</p>
 
-      <h4>Chat or Form — your call</h4>
-      <p>Prefer not to chat? Tap <b>Form</b> in the toggle up top for a classic fill-in-the-blanks note. The app remembers your choice and opens that way next time.</p>
+      <h4>Form or Chat — your call</h4>
+      <p>Two ways to capture: a quick fill-in-the-blanks <b>Form</b> (the default), or <b>Chat</b> with Q by voice or text. Tap either in the toggle up top — the app remembers your choice and opens that way next time.</p>
 
       <h4>What to capture — go wide</h4>
       <p>Everything is intel. Don't filter yourself.</p>
@@ -1444,7 +1444,12 @@ function saveCaptureMode(mode) {
   try { localStorage.setItem(CAPTURE_MODE_KEY + '_' + currentUser.id, mode); } catch {}
 }
 function applySavedCaptureMode() {
-  if (savedCaptureMode() === 'form') setMode('form');
+  const saved = savedCaptureMode();
+  // Honor an explicit prior choice; otherwise default new reps to Form (better
+  // first option / higher adoption). Don't persist the default — only an actual
+  // tap writes a preference, so the default can change later without being locked in.
+  const mode = (saved === 'chat' || saved === 'form') ? saved : 'form';
+  setMode(mode, !!saved);
 }
 function showIntroModal(manual) {
   const el = document.getElementById('introModal');
@@ -1880,6 +1885,7 @@ async function submitNote(e) {
       next_action: nextAction || null,
       photo_url: photoUrl,
       status: 'submitted',
+      capture_mode: 'form',
       // Form fallback has no toggle — respect the rep's default visibility (owner = private).
       is_shared: (typeof currentUser?.default_notes_shared === 'boolean') ? currentUser.default_notes_shared : true,
     };
@@ -2625,7 +2631,7 @@ async function startNewNote() {
   await loadDrafts();
 }
 
-function setMode(mode) {
+function setMode(mode, persist = true) {
   const isForm = mode === 'form';
   document.getElementById('chatMode').style.display = isForm ? 'none' : '';
   document.getElementById('noteForm').style.display = isForm ? '' : 'none';
@@ -2636,7 +2642,7 @@ function setMode(mode) {
   segChat.setAttribute('aria-selected', String(!isForm));
   segForm.setAttribute('aria-selected', String(isForm));
   chatMode = mode;
-  saveCaptureMode(mode);
+  if (persist) saveCaptureMode(mode);
 }
 
 function appendChatBubble(role, text) {
@@ -2988,6 +2994,7 @@ async function finalizeNote() {
       tags: mergedTags,
       next_action: nextAction || null,
       status: 'submitted',
+      capture_mode: 'chat',
       // V4.1.9: visibility chosen on confirm screen (overrides DB trigger default)
       is_shared: !!confirmIsShared,
       // V4.0.19: bump draft_updated_at on submit so the Team stats use the
