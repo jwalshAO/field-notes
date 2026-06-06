@@ -1161,6 +1161,15 @@
         <div id="confirmSubjectMeta" style="font-size:11px;color:var(--gray-500);margin-top:4px;"></div>
       </div>
       <div class="form-group">
+        <label class="form-label">Also link <span style="font-weight:400;color:var(--gray-500);">· optional</span></label>
+        <div class="tags-row" id="confirmExtraChips" style="margin-bottom:6px;"></div>
+        <div class="autocomplete-wrapper">
+          <input type="text" id="confirmExtraInput" class="form-input" placeholder="Add another surgeon, facility, competitor…" autocomplete="off" />
+          <div id="confirmExtraList" class="autocomplete-list"></div>
+        </div>
+        <div style="font-size:11px;color:var(--gray-500);margin-top:4px;">Tag everyone this note touches — it lands on each of their profiles.</div>
+      </div>
+      <div class="form-group">
         <label class="form-label">Who can see this</label>
         <div id="confirmVisSeg" style="display:flex;gap:6px;">
           <button type="button" class="vis-seg" data-vis="private" onclick="setConfirmVisibility('private')"
@@ -2935,6 +2944,10 @@ function showConfirmModal(parsed) {
   } else {
     confirmVisibility = 'team';
   }
+  confirmExtraLinks = [];
+  renderConfirmExtraChips();
+  const extraInput = document.getElementById('confirmExtraInput');
+  if (extraInput) extraInput.value = '';
   renderConfirmTags();
   renderConfirmVisibility();
   document.getElementById('confirmModal').classList.add('open');
@@ -3013,6 +3026,67 @@ function closeConfirmModalBack() {
   document.getElementById('confirmModal').classList.remove('open');
 }
 
+// ── "Also link" — optional multi-entity tagging on the confirm screen ──
+// Q still parses one primary subject; this lets the rep attach extras (more
+// surgeons, a facility, a competitor…) in one tap. Written to field_note_subjects
+// via link_note_subject after the note saves.
+let confirmExtraLinks = [];   // [{ type, id, display }] — type ∈ surgeon/hospital/manufacturer/competitor
+
+function mapLinkType(t) { return t === 'hospital' ? 'location' : t; }
+
+function isPrimarySubject(type, id) {
+  const p = parsedNoteDraft || {};
+  return mapLinkType(type) === mapLinkType(p.subject_type) && id === p.subject_id;
+}
+
+function renderConfirmExtraChips() {
+  const wrap = document.getElementById('confirmExtraChips');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  confirmExtraLinks.forEach((l, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip selected';
+    chip.textContent = l.display;
+    const x = document.createElement('span');
+    x.textContent = ' ×';
+    x.style.cssText = 'margin-left:4px;font-weight:700;cursor:pointer;';
+    x.onclick = () => { confirmExtraLinks.splice(i, 1); renderConfirmExtraChips(); };
+    chip.appendChild(x);
+    wrap.appendChild(chip);
+  });
+}
+
+function addExtraLink(r) {
+  if (isPrimarySubject(r.type, r.id)) return;                                   // already the primary subject
+  if (confirmExtraLinks.some(l => l.type === r.type && l.id === r.id)) return;  // dedupe
+  confirmExtraLinks.push({ type: r.type, id: r.id, display: r.display });
+  renderConfirmExtraChips();
+}
+
+(function wireConfirmExtraInput() {
+  const input = document.getElementById('confirmExtraInput');
+  const list = document.getElementById('confirmExtraList');
+  if (!input || !list) return;
+  input.addEventListener('input', function () {
+    const q = this.value.trim().toLowerCase();
+    if (q.length < 2) { list.classList.remove('open'); return; }
+    const results = buildSubjectResults(q);   // surgeon/hospital/manufacturer/competitor
+    list._results = results;
+    list.innerHTML = results.length
+      ? results.map((r, i) => `<div class="autocomplete-item" data-i="${i}"><div class="ac-name">${highlightMatch(r.display, q)}<span class="ac-badge ${r.badgeClass}">${r.badge}</span></div></div>`).join('')
+      : '<div class="autocomplete-item" style="color:var(--gray-500);">No matches</div>';
+    list.querySelectorAll('.autocomplete-item[data-i]').forEach(el => {
+      el.addEventListener('click', () => {
+        const r = list._results[parseInt(el.dataset.i, 10)];
+        if (r) addExtraLink(r);
+        input.value = ''; list.classList.remove('open'); input.focus();
+      });
+    });
+    list.classList.add('open');
+  });
+  input.addEventListener('blur', () => setTimeout(() => list.classList.remove('open'), 200));
+})();
+
 async function finalizeNote() {
   const btn = document.getElementById('confirmSubmitBtn');
 
@@ -3059,12 +3133,14 @@ async function finalizeNote() {
       draft_updated_at: new Date().toISOString(),
     };
 
+    let savedId = null;
     if (currentDraftId) {
       // .select().single() makes RLS denials surface as real errors instead of
       // silently returning success with 0 affected rows (V4.0.17 fix).
       const { data, error } = await sb.from('field_notes').update(noteFields).eq('id', currentDraftId).select().single();
       if (error) throw error;
       if (!data) throw new Error('Update returned no row — RLS or permissions issue.');
+      savedId = data.id;
     } else {
       const { data, error } = await sb.from('field_notes').insert([{
         rep_id: currentUser.id,
@@ -3075,12 +3151,24 @@ async function finalizeNote() {
       }]).select().single();
       if (error) throw error;
       if (!data) throw new Error('Insert returned no row — RLS or permissions issue.');
+      savedId = data.id;
+    }
+
+    // "Also link" extras → field_note_subjects (multi-entity). The note is already
+    // saved; a link failure shouldn't block the success, so we don't throw on these.
+    if (savedId && confirmExtraLinks.length) {
+      const linkResults = await Promise.all(confirmExtraLinks.map(l =>
+        sb.rpc('link_note_subject', { p_note_id: savedId, p_subject_type: mapLinkType(l.type), p_ref_id: l.id, p_ref_text: null })
+      ));
+      const failed = linkResults.filter(r => r && r.error);
+      if (failed.length) console.warn('Some note links failed:', failed.map(r => r.error.message));
     }
 
     document.getElementById('confirmModal').classList.remove('open');
     celebrateSubmission();
 
     // Reset chat for the next note
+    confirmExtraLinks = [];
     parsedNoteDraft = null;
     initChat();
     loadNotes();
