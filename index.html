@@ -1044,6 +1044,16 @@
           </div>
 
           <div class="form-group">
+            <label class="form-label">Also link <span style="font-weight:400;color:var(--gray-500);">· optional</span></label>
+            <div class="tags-row" id="formExtraChips" style="margin-bottom:6px;"></div>
+            <div class="autocomplete-wrapper">
+              <input type="text" id="formExtraInput" class="form-input" placeholder="Add another surgeon, facility, competitor…" autocomplete="off">
+              <div id="formExtraList" class="autocomplete-list"></div>
+            </div>
+            <div style="font-size:11px;color:var(--gray-500);margin-top:4px;">Tag everyone this note touches — it lands on each of their profiles.</div>
+          </div>
+
+          <div class="form-group">
             <label class="form-label">Tags (optional)</label>
             <div class="tags-row">
               <span class="tag-chip" data-tag="Interaction" onclick="toggleTag(this)">Interaction</span>
@@ -1091,6 +1101,7 @@
           <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoSelect(this)">
 
           <button type="submit" class="btn-submit" id="submitBtn">Submit Note</button>
+          <button type="button" id="cancelFormBtn" onclick="cancelFormNote()" style="width:100%;padding:12px;margin-top:8px;background:transparent;color:#b91c1c;border:1px solid var(--gray-300);border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;">Cancel note</button>
         </form>
       </div>
 
@@ -1218,6 +1229,7 @@
     </div>
     <div class="confirm-footer">
       <button type="button" class="btn-submit" id="confirmSubmitBtn" onclick="finalizeNote()">Submit note</button>
+      <button type="button" id="confirmCancelBtn" onclick="cancelFromConfirm()" style="width:100%;padding:12px;margin-top:8px;background:transparent;color:#b91c1c;border:1px solid var(--gray-300);border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;">Cancel note</button>
     </div>
   </div>
 
@@ -1938,11 +1950,20 @@ async function submitNote(e) {
       visibility: formVisibility,
     };
 
-    const { error } = await sb.from('field_notes').insert([noteData]);
+    const { data: inserted, error } = await sb.from('field_notes').insert([noteData]).select('id').single();
 
     if (error) {
       alert('Error saving note: ' + error.message);
       return;
+    }
+
+    // "Also link" extras → field_note_subjects (multi-entity). Non-blocking on link errors.
+    if (inserted?.id && formExtraLinks.length) {
+      const linkResults = await Promise.all(formExtraLinks.map(l =>
+        sb.rpc('link_note_subject', { p_note_id: inserted.id, p_subject_type: mapLinkType(l.type), p_ref_id: l.id, p_ref_text: null })
+      ));
+      const failed = linkResults.filter(r => r && r.error);
+      if (failed.length) console.warn('Some note links failed:', failed.map(r => r.error.message));
     }
 
     // Show success + celebrate
@@ -1954,6 +1975,8 @@ async function submitNote(e) {
     selectedTags = [];
     selectedSubject = null;
     selectedPhoto = null;
+    formExtraLinks = [];
+    renderFormExtraChips();
     formVisibility = repDefaultVisibility();
     renderFormVisibility();
     document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
@@ -1968,6 +1991,91 @@ async function submitNote(e) {
     btn.disabled = false;
     btn.textContent = 'Submit Note';
   }
+}
+
+// ── Form-mode "Also link" extras (parity with the chat confirm screen) ──
+let formExtraLinks = [];   // [{ type, id, display }]
+
+function renderFormExtraChips() {
+  const wrap = document.getElementById('formExtraChips');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  formExtraLinks.forEach((l, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip selected';
+    chip.textContent = l.display;
+    const x = document.createElement('span');
+    x.textContent = ' ×';
+    x.style.cssText = 'margin-left:4px;font-weight:700;cursor:pointer;';
+    x.onclick = () => { formExtraLinks.splice(i, 1); renderFormExtraChips(); };
+    chip.appendChild(x);
+    wrap.appendChild(chip);
+  });
+}
+
+function addFormExtraLink(r) {
+  if (selectedSubject && mapLinkType(selectedSubject.type) === mapLinkType(r.type) && selectedSubject.id === r.id) return;  // already primary
+  if (formExtraLinks.some(l => l.type === r.type && l.id === r.id)) return;  // dedupe
+  formExtraLinks.push({ type: r.type, id: r.id, display: r.display });
+  renderFormExtraChips();
+}
+
+(function wireFormExtraInput() {
+  const input = document.getElementById('formExtraInput');
+  const list = document.getElementById('formExtraList');
+  if (!input || !list) return;
+  input.addEventListener('input', function () {
+    const q = this.value.trim().toLowerCase();
+    if (q.length < 2) { list.classList.remove('open'); return; }
+    const results = buildSubjectResults(q);
+    list._results = results;
+    list.innerHTML = results.length
+      ? results.map((r, i) => `<div class="autocomplete-item" data-i="${i}"><div class="ac-name">${highlightMatch(r.display, q)}<span class="ac-badge ${r.badgeClass}">${r.badge}</span></div></div>`).join('')
+      : '<div class="autocomplete-item" style="color:var(--gray-500);">No matches</div>';
+    list.querySelectorAll('.autocomplete-item[data-i]').forEach(el => {
+      el.addEventListener('click', () => {
+        const r = list._results[parseInt(el.dataset.i, 10)];
+        if (r) addFormExtraLink(r);
+        input.value = ''; list.classList.remove('open'); input.focus();
+      });
+    });
+    list.classList.add('open');
+  });
+  input.addEventListener('blur', () => setTimeout(() => list.classList.remove('open'), 200));
+})();
+
+// ── Cancel a note in progress (with confirmation) ──
+function cancelFormNote() {
+  const hasContent = (subjectInput.value.trim() || document.getElementById('noteBody').value.trim() ||
+    selectedTags.length || selectedSubject || formExtraLinks.length || selectedPhoto);
+  if (hasContent && !confirm('Cancel this note? Anything you\'ve entered will be discarded.')) return;
+  document.getElementById('noteForm').reset();
+  document.getElementById('noteDate').value = new Date().toISOString().split('T')[0];
+  selectedTags = [];
+  selectedSubject = null;
+  selectedPhoto = null;
+  formExtraLinks = [];
+  renderFormExtraChips();
+  formVisibility = repDefaultVisibility();
+  renderFormVisibility();
+  document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('photoPreviewRow').style.display = 'none';
+  document.querySelector('.camera-btn').classList.remove('has-photo');
+  document.getElementById('photoBadge').style.display = 'none';
+}
+
+async function cancelFromConfirm() {
+  if (!confirm('Cancel this note? Anything you\'ve typed or saved as a draft will be deleted.')) return;
+  if (currentDraftId) {
+    try {
+      await sb.from('field_notes').delete().eq('id', currentDraftId).eq('rep_id', currentUser.id).eq('status', 'draft');
+    } catch (err) { console.warn('cancelFromConfirm: draft delete failed', err); }
+  }
+  document.getElementById('confirmModal').classList.remove('open');
+  confirmExtraLinks = [];
+  parsedNoteDraft = null;
+  initChat();
+  loadDrafts();
 }
 
 // ============================================================
