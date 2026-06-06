@@ -1146,6 +1146,28 @@
     </div>
   </div>
 
+  <!-- LINK NOTE MODAL (attach an existing note to entities, after the fact) -->
+  <div id="linkNoteModal" class="modal-overlay" onclick="closeLinkModal(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-title">🔗 Link this note</div>
+      <div class="form-group">
+        <label class="form-label">Linked to</label>
+        <div class="tags-row" id="linkModalChips" style="min-height:24px;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Add a link</label>
+        <div class="autocomplete-wrapper">
+          <input type="text" id="linkModalInput" class="form-input" placeholder="Surgeon, facility, competitor, manufacturer…" autocomplete="off" />
+          <div id="linkModalList" class="autocomplete-list"></div>
+        </div>
+        <div style="font-size:11px;color:var(--gray-500);margin-top:4px;">Anyone on the team can link or unlink — each entity gets the note on its profile.</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-primary" onclick="closeLinkModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- FULL-SCREEN PHOTO VIEWER -->
   <!-- CONFIRM-AND-EDIT PAGE (V4.3.0 full-screen) -->
   <div id="confirmModal" class="confirm-page">
@@ -2056,6 +2078,7 @@ function renderNotesFeed(filterTag = 'all') {
           <div class="note-card-subject">${escHtml(subjectDisplay)}${subjectBadge}</div>
           <div style="display:flex;align-items:center;gap:4px;">
             <div class="note-card-date">${dateStr}</div>
+            ${!isDeleted ? `<button class="note-vis-btn" onclick="openLinkModal(${n.id})" title="Link to surgeons / facilities / contacts">🔗</button>` : ''}
             ${canToggleVis ? `<button class="note-vis-btn" onclick="toggleNoteVisibility(${n.id}, ${!isShared})" title="${visTitle}">${visIcon}</button>` : `<span class="note-vis-btn" style="cursor:default;" title="${visTitle}">${visIcon}</span>`}
             ${canDelete ? `<button class="note-delete-btn" onclick="softDeleteNote('${n.id}')" title="Delete note">✕</button>` : ''}
           </div>
@@ -2080,6 +2103,83 @@ function filterNotes(tag, el) {
   el.classList.add('active');
   renderNotesFeed(tag);
 }
+
+// ── Link an existing note to entities from the feed (parity with the Neo CRM portal) ──
+// Uses the same note_links / link_note_subject / unlink_note_subject RPCs. Any signed-in
+// rep can link/unlink (audited server-side); link mirrors into the primary FK if empty.
+let linkModalNoteId = null;
+
+function openLinkModal(noteId) {
+  linkModalNoteId = noteId;
+  document.getElementById('linkModalInput').value = '';
+  document.getElementById('linkModalList').classList.remove('open');
+  document.getElementById('linkModalChips').innerHTML = '<span style="font-size:12px;color:var(--gray-500);">Loading…</span>';
+  document.getElementById('linkNoteModal').classList.add('open');
+  loadLinkModalLinks();
+}
+
+function closeLinkModal(e) {
+  if (e && e.target !== e.currentTarget) return;   // ignore clicks inside the sheet
+  document.getElementById('linkNoteModal').classList.remove('open');
+  linkModalNoteId = null;
+  loadNotes();   // refresh feed so subject badges reflect any new primary link
+}
+
+async function loadLinkModalLinks() {
+  const wrap = document.getElementById('linkModalChips');
+  const { data, error } = await sb.rpc('note_links', { p_note_id: linkModalNoteId });
+  if (error) { wrap.innerHTML = '<span style="font-size:12px;color:#b91c1c;">' + escHtml(error.message) + '</span>'; return; }
+  const links = data || [];
+  if (!links.length) { wrap.innerHTML = '<span style="font-size:12px;color:var(--gray-500);font-style:italic;">Not linked to anyone yet — add one below.</span>'; return; }
+  wrap.innerHTML = '';
+  links.forEach(l => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip selected';
+    chip.textContent = (l.label || l.ref_text || '—') + (l.is_primary ? ' ★' : '');
+    const x = document.createElement('span');
+    x.textContent = ' ×';
+    x.style.cssText = 'margin-left:4px;font-weight:700;cursor:pointer;';
+    x.onclick = () => removeLinkModalLink(l);
+    chip.appendChild(x);
+    wrap.appendChild(chip);
+  });
+}
+
+async function addLinkModalLink(r) {
+  const { error } = await sb.rpc('link_note_subject', { p_note_id: linkModalNoteId, p_subject_type: mapLinkType(r.type), p_ref_id: r.id, p_ref_text: null });
+  if (error) { alert('Couldn’t link: ' + error.message); return; }
+  loadLinkModalLinks();
+}
+
+async function removeLinkModalLink(l) {
+  const { error } = await sb.rpc('unlink_note_subject', { p_note_id: linkModalNoteId, p_subject_type: l.subject_type, p_ref_id: l.ref_id, p_ref_text: l.ref_text });
+  if (error) { alert('Couldn’t unlink: ' + error.message); return; }
+  loadLinkModalLinks();
+}
+
+(function wireLinkModalInput() {
+  const input = document.getElementById('linkModalInput');
+  const list = document.getElementById('linkModalList');
+  if (!input || !list) return;
+  input.addEventListener('input', function () {
+    const q = this.value.trim().toLowerCase();
+    if (q.length < 2) { list.classList.remove('open'); return; }
+    const results = buildSubjectResults(q);   // surgeon/hospital/manufacturer/competitor
+    list._results = results;
+    list.innerHTML = results.length
+      ? results.map((r, i) => `<div class="autocomplete-item" data-i="${i}"><div class="ac-name">${highlightMatch(r.display, q)}<span class="ac-badge ${r.badgeClass}">${r.badge}</span></div></div>`).join('')
+      : '<div class="autocomplete-item" style="color:var(--gray-500);">No matches</div>';
+    list.querySelectorAll('.autocomplete-item[data-i]').forEach(el => {
+      el.addEventListener('click', () => {
+        const r = list._results[parseInt(el.dataset.i, 10)];
+        if (r) addLinkModalLink(r);
+        input.value = ''; list.classList.remove('open'); input.focus();
+      });
+    });
+    list.classList.add('open');
+  });
+  input.addEventListener('blur', () => setTimeout(() => list.classList.remove('open'), 200));
+})();
 
 // ============================================================
 // SOFT DELETE
