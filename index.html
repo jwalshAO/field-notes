@@ -1705,9 +1705,10 @@ const acList = document.getElementById('autocompleteList');
 function buildSubjectResults(q) {
   const results = [];
 
-  // Surgeons (association field: primary_hospital)
+  // Surgeons (association field: primary_hospital). Haystack carries BOTH name
+  // orders so "Stephen Liu" matches as well as "Liu Stephen" (V4.6.2 fix).
   allSurgeons.filter(s => {
-    const full = (s.last_name + ' ' + s.first_name + ' ' + (s.primary_hospital || '')).toLowerCase();
+    const full = (s.last_name + ' ' + s.first_name + ' ' + s.first_name + ' ' + s.last_name + ' ' + (s.primary_hospital || '')).toLowerCase();
     return full.includes(q);
   }).slice(0, 6).forEach(s => {
     const displayName = s.last_name + ', ' + s.first_name + (s.credential ? ', ' + s.credential : '');
@@ -1841,7 +1842,11 @@ function renderSubjectSuggestions(results, rawQuery) {
     chip.className = 'tag-chip';
     chip.textContent = '+ ' + r.display;
     chip.onclick = () => {
+      const typed = subjectInput.value;
       addFormExtraLink(r);
+      // Linking must never blank the Subject — keep what the rep typed,
+      // or fall back to the entity's name if the field is somehow empty.
+      if (!subjectInput.value.trim()) subjectInput.value = typed.trim() || r.display;
       renderSubjectSuggestions(results, rawQuery);
     };
     row.appendChild(chip);
