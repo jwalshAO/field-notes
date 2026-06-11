@@ -1038,20 +1038,22 @@
           <div class="form-group">
             <label class="form-label">Subject</label>
             <div class="autocomplete-wrapper">
-              <input type="text" id="subjectInput" class="form-input" placeholder="Surgeon, hospital, competitor, manufacturer..." maxlength="200" autocomplete="off">
+              <input type="text" id="subjectInput" class="form-input" placeholder="What is this note about?" maxlength="200" autocomplete="off">
               <div id="autocompleteList" class="autocomplete-list"></div>
             </div>
-            <!-- subject selection stored in JS selectedSubject variable -->
+            <!-- V4.6.0: subject is free text; typing a known name surfaces one-tap link chips here -->
+            <div class="tags-row" id="subjectSuggestRow" style="margin-top:6px;"></div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Also link <span style="font-weight:400;color:var(--gray-500);">· optional</span></label>
+            <label class="form-label">Links</label>
             <div class="tags-row" id="formExtraChips" style="margin-bottom:6px;"></div>
             <div class="autocomplete-wrapper">
-              <input type="text" id="formExtraInput" class="form-input" placeholder="Add another surgeon, facility, competitor…" autocomplete="off">
+              <input type="text" id="formExtraInput" class="form-input" placeholder="Search surgeons, facilities, contacts, products…" autocomplete="off">
               <div id="formExtraList" class="autocomplete-list"></div>
             </div>
-            <div style="font-size:11px;color:var(--gray-500);margin-top:4px;">Tag everyone this note touches — it lands on each of their profiles.</div>
+            <div style="font-size:11px;color:var(--gray-500);margin-top:4px;">Link the people and places this note is about — that's how it files to their profiles.</div>
+            <div id="formLinkNudge" style="display:none;font-size:12px;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:8px 10px;margin-top:6px;">Notes need at least one link to file properly. Add one above — or tap Save again to file it unlinked.</div>
           </div>
 
           <div class="form-group">
@@ -1776,83 +1778,55 @@ function buildSubjectResults(q) {
 // without embedding JSON inside HTML attributes (the old pattern broke on names with `<`)
 let acCurrentResults = [];
 
+// V4.6.0 — Subject is FREE TEXT; linking lives in the Links field. As the rep
+// types, matching CRM entities surface as one-tap "Link:" chips below the
+// subject so linking is a tap, never a retype. Skipped links get the nightly
+// auto-link sweep as a safety net.
+let subjectSuggestTimer = null;
 subjectInput.addEventListener('input', function() {
-  const q = this.value.trim().toLowerCase();
-  selectedSubject = null;
-  highlightIndex = -1;
-
-  if (q.length < 2) { acList.classList.remove('open'); return; }
-
-  const results = buildSubjectResults(q);
-  acCurrentResults = results;
-
-  let html = results.map((r, i) => `
-    <div class="autocomplete-item" data-index="${i}">
-      <div class="ac-name">${highlightMatch(r.display, q)}<span class="ac-badge ${r.badgeClass}">${r.badge}</span></div>
-      ${r.detail ? `<div class="ac-detail">${escHtml(r.detail)}</div>` : ''}
-    </div>
-  `).join('');
-
-  html += `<div class="autocomplete-freeform" data-action="freeform">Use "${escHtml(this.value)}" as-is</div>`;
-
-  acList.innerHTML = html;
-
-  // Wire click handlers from the closure instead of via inline onclick
-  acList.querySelectorAll('.autocomplete-item').forEach(el => {
-    el.addEventListener('click', () => {
-      const idx = parseInt(el.dataset.index, 10);
-      const r = acCurrentResults[idx];
-      if (r) selectSubject({ type: r.type, id: r.id, display: r.display });
-    });
-  });
-  const freeform = acList.querySelector('.autocomplete-freeform');
-  if (freeform) freeform.addEventListener('click', useFreeform);
-
-  acList.classList.add('open');
+  selectedSubject = null; // legacy — the subject line no longer links directly
+  clearTimeout(subjectSuggestTimer);
+  const raw = this.value.trim();
+  if (raw.length < 2) { renderSubjectSuggestions([], ''); return; }
+  subjectSuggestTimer = setTimeout(() => {
+    renderSubjectSuggestions(buildSubjectResults(raw.toLowerCase()).slice(0, 3), raw);
+  }, 200);
 });
 
-subjectInput.addEventListener('keydown', function(e) {
-  const items = acList.querySelectorAll('.autocomplete-item');
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    highlightIndex = Math.min(highlightIndex + 1, items.length - 1);
-    updateHighlight(items);
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    highlightIndex = Math.max(highlightIndex - 1, 0);
-    updateHighlight(items);
-  } else if (e.key === 'Enter' && highlightIndex >= 0 && items[highlightIndex]) {
-    e.preventDefault();
-    items[highlightIndex].click();
-  } else if (e.key === 'Escape') {
-    acList.classList.remove('open');
+function renderSubjectSuggestions(results, rawQuery) {
+  const row = document.getElementById('subjectSuggestRow');
+  if (!row) return;
+  row.innerHTML = '';
+  const fresh = results.filter(r => !formExtraLinks.some(l => l.type === r.type && l.id === r.id));
+  if (!fresh.length) {
+    // No CRM match but it reads like a person's name → offer the add-surgeon flow
+    if (rawQuery && results.length === 0 && /^(dr\.?\s+)?[a-z'.-]+\s+[a-z'.-]+$/i.test(rawQuery)) {
+      const chip = document.createElement('span');
+      chip.className = 'tag-chip';
+      chip.textContent = '+ New surgeon: ' + rawQuery.replace(/^dr\.?\s+/i, '');
+      chip.onclick = createSurgeonFromInput;
+      row.appendChild(chip);
+    }
+    return;
   }
-});
-
-function updateHighlight(items) {
-  items.forEach((item, i) => item.classList.toggle('highlighted', i === highlightIndex));
-}
-
-subjectInput.addEventListener('blur', function() {
-  setTimeout(() => acList.classList.remove('open'), 200);
-});
-subjectInput.addEventListener('focus', function() {
-  if (this.value.trim().length >= 2) this.dispatchEvent(new Event('input'));
-});
-
-function selectSubject(subject) {
-  selectedSubject = subject;
-  subjectInput.value = subject.display;
-  acList.classList.remove('open');
-}
-
-function useFreeform() {
-  selectedSubject = null;
-  acList.classList.remove('open');
+  const lab = document.createElement('span');
+  lab.textContent = 'Link:';
+  lab.style.cssText = 'font-size:11px;color:var(--gray-500);align-self:center;margin-right:2px;';
+  row.appendChild(lab);
+  fresh.forEach(r => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.textContent = '+ ' + r.display;
+    chip.onclick = () => {
+      addFormExtraLink(r);
+      renderSubjectSuggestions(results, rawQuery);
+    };
+    row.appendChild(chip);
+  });
 }
 
 function createSurgeonFromInput() {
-  const parts = subjectInput.value.trim().split(/[\s,]+/);
+  const parts = subjectInput.value.trim().replace(/^[Dd][Rr]\.?\s+/, '').split(/[\s,]+/);
   if (parts.length >= 2) {
     document.getElementById('newSurgeonFirst').value = parts[0];
     document.getElementById('newSurgeonLast').value = parts.slice(1).join(' ');
@@ -1936,8 +1910,26 @@ function viewPhoto(url) {
 // ============================================================
 // SUBMIT NOTE
 // ============================================================
+// Soft gate: notes should carry at least one link to file properly, but a
+// second Save still goes through (never block a note — some have no entity).
+let formLinkNudgeArmed = false;
+function showFormLinkNudge() {
+  const el = document.getElementById('formLinkNudge');
+  if (el) el.style.display = 'block';
+}
+function hideFormLinkNudge() {
+  formLinkNudgeArmed = false;
+  const el = document.getElementById('formLinkNudge');
+  if (el) el.style.display = 'none';
+}
+
 async function submitNote(e) {
   e.preventDefault();
+  if (!formExtraLinks.length && !formLinkNudgeArmed) {
+    formLinkNudgeArmed = true;
+    showFormLinkNudge();
+    return;
+  }
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>';
@@ -1952,11 +1944,13 @@ async function submitNote(e) {
     const noteData = {
       rep_id: currentUser.id,
       subject_text: subjectInput.value.trim(),
-      subject_type: selectedSubject ? selectedSubject.type : null,
-      surgeon_id: selectedSubject && selectedSubject.type === 'surgeon' ? selectedSubject.id : null,
-      location_id: selectedSubject && selectedSubject.type === 'hospital' ? selectedSubject.id : null,
-      manufacturer_id: selectedSubject && selectedSubject.type === 'manufacturer' ? selectedSubject.id : null,
-      competitor_id: selectedSubject && selectedSubject.type === 'competitor' ? selectedSubject.id : null,
+      // V4.6.0: subject is a free-text label. All entity connections (incl. the
+      // primary FK, mirrored server-side) come from the Links field below.
+      subject_type: null,
+      surgeon_id: null,
+      location_id: null,
+      manufacturer_id: null,
+      competitor_id: null,
       note_body: document.getElementById('noteBody').value.trim(),
       tags: selectedTags,
       note_date: document.getElementById('noteDate').value,
@@ -1995,6 +1989,8 @@ async function submitNote(e) {
     selectedPhoto = null;
     formExtraLinks = [];
     renderFormExtraChips();
+    hideFormLinkNudge();
+    renderSubjectSuggestions([], '');
     formVisibility = repDefaultVisibility();
     renderFormVisibility();
     document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
@@ -2032,10 +2028,10 @@ function renderFormExtraChips() {
 }
 
 function addFormExtraLink(r) {
-  if (selectedSubject && mapLinkType(selectedSubject.type) === mapLinkType(r.type) && selectedSubject.id === r.id) return;  // already primary
   if (formExtraLinks.some(l => l.type === r.type && l.id === r.id)) return;  // dedupe
   formExtraLinks.push({ type: r.type, id: r.id, display: r.display });
   renderFormExtraChips();
+  hideFormLinkNudge();
 }
 
 (function wireFormExtraInput() {
@@ -2074,6 +2070,8 @@ function cancelFormNote() {
   selectedPhoto = null;
   formExtraLinks = [];
   renderFormExtraChips();
+  hideFormLinkNudge();
+  renderSubjectSuggestions([], '');
   formVisibility = repDefaultVisibility();
   renderFormVisibility();
   document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
@@ -2404,7 +2402,9 @@ async function saveNewSurgeon() {
     allSurgeons.push(data);
     allSurgeons.sort((a, b) => a.last_name.localeCompare(b.last_name));
     const displayName = data.last_name + ', ' + data.first_name + (data.credential ? ', ' + data.credential : '');
-    selectSubject({ type: 'surgeon', id: data.id, display: displayName });
+    // V4.6.0: new surgeon becomes a LINK chip (subject stays free text)
+    addFormExtraLink({ type: 'surgeon', id: data.id, display: displayName });
+    renderSubjectSuggestions([], '');
     closeAddSurgeon();
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Save Surgeon'; }
