@@ -1680,7 +1680,7 @@ async function logout() {
 async function loadSubjectEntities() {
   const [surgeons, locations, manufacturers, competitors, products] = await Promise.all([
     sb.from('surgeons').select('id, first_name, last_name, credential, primary_hospital, status, specialty, funnel_stage').order('last_name'),
-    sb.from('locations').select('id, name, city, state, category').eq('active', true).order('name'),
+    sb.from('locations').select('id, name, city, state, category, aliases').eq('active', true).order('name'),
     sb.from('manufacturers').select('id, name, short_name, product_focus, status').order('name'),
     sb.from('competitors').select('id, name, category').eq('active', true).order('name'),
     sb.from('products').select('id, name, short_name, aliases').eq('active', true).order('name')
@@ -1690,6 +1690,7 @@ async function loadSubjectEntities() {
   allManufacturers = manufacturers.data || [];
   allCompetitors = competitors.data || [];
   allProducts = products.data || [];
+  entityMaps = null; // scanner maps rebuild lazily on next use
 }
 
 // ============================================================
@@ -1697,6 +1698,104 @@ async function loadSubjectEntities() {
 // ============================================================
 const subjectInput = document.getElementById('subjectInput');
 const acList = document.getElementById('autocompleteList');
+
+// ── V4.6.3 — Subject mention scanner ─────────────────────────────────────
+// Inverts the match: instead of asking which entity name contains the typed
+// text, scan the typed text FOR entity names (1–4 word phrases). A natural
+// sentence — "Chris Jones using Acumed radial head today at Bryn Mawr SC" —
+// surfaces one chip per entity. Suggest-only; the rep taps to link, so a
+// stray match costs one ignorable chip, never bad data.
+let entityMaps = null;
+
+function buildEntityMaps() {
+  const phrase = new Map();   // lowercase phrase -> [suggestion]
+  const byLast = new Map();   // surgeon last name -> [surgeon rows]
+  const addPhrase = (key, sugg) => {
+    const k = (key || '').toLowerCase().trim();
+    if (k.length < 3) return;
+    if (!phrase.has(k)) phrase.set(k, []);
+    phrase.get(k).push(sugg);
+  };
+  allLocations.forEach(l => {
+    const loc = l.city && l.state ? l.city + ', ' + l.state : '';
+    const sugg = { type: 'hospital', id: l.id, display: l.name, detail: loc, badge: 'Hospital', badgeClass: 'badge-hospital', raw: l };
+    addPhrase(l.name, sugg);
+    (Array.isArray(l.aliases) ? l.aliases : []).forEach(a => addPhrase(a, sugg));
+  });
+  allCompetitors.forEach(c =>
+    addPhrase(c.name, { type: 'competitor', id: c.id, display: c.name, detail: '', badge: 'Competitor', badgeClass: 'badge-competitor', raw: c }));
+  allManufacturers.forEach(m => {
+    const sugg = { type: 'manufacturer', id: m.id, display: m.name, detail: m.product_focus || '', badge: 'Manufacturer', badgeClass: 'badge-manufacturer', raw: m };
+    addPhrase(m.name, sugg);
+    if (m.short_name) addPhrase(m.short_name, sugg);
+  });
+  allProducts.forEach(p => {
+    const sugg = { type: 'product', id: p.id, display: p.name, detail: p.short_name || '', badge: 'Product', badgeClass: 'badge-product', raw: p };
+    addPhrase(p.name, sugg);
+    if (p.short_name) addPhrase(p.short_name, sugg);
+    (Array.isArray(p.aliases) ? p.aliases : []).forEach(a => addPhrase(a, sugg));
+  });
+  allSurgeons.forEach(s => {
+    const k = (s.last_name || '').toLowerCase();
+    if (k.length < 3) return; // 2-letter last names are noise
+    if (!byLast.has(k)) byLast.set(k, []);
+    byLast.get(k).push(s);
+  });
+  entityMaps = { phrase, byLast };
+}
+
+function surgeonSuggestion(s) {
+  const displayName = s.last_name + ', ' + s.first_name + (s.credential ? ', ' + s.credential : '');
+  const isActive = s.status === 'regular_user' || s.funnel_stage === 'active';
+  return { type: 'surgeon', id: s.id, display: displayName, detail: s.primary_hospital || '', badge: 'Surgeon', badgeClass: isActive ? 'badge-active' : 'badge-prospect', raw: s };
+}
+
+function extractEntityMentions(text) {
+  if (!entityMaps) buildEntityMaps();
+  const tokens = text.toLowerCase()
+    .replace(/[^a-z0-9.&'’\- ]/gi, ' ')
+    .split(/\s+/)
+    .map(t => t.replace(/^[.'’-]+|[.'’-]+$/g, ''))
+    .filter(Boolean);
+  const out = [];
+  const seen = new Set();
+  const claimed = new Array(tokens.length).fill(false);
+  const push = (sugg) => {
+    const key = sugg.type + '-' + sugg.id;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(sugg);
+  };
+  // Longest phrases first so "bryn mawr sc" wins over any shorter overlap.
+  for (let n = 4; n >= 1; n--) {
+    for (let i = 0; i + n <= tokens.length; i++) {
+      if (claimed.slice(i, i + n).some(Boolean)) continue;
+      const gram = tokens.slice(i, i + n).join(' ');
+      const hits = entityMaps.phrase.get(gram);
+      if (hits && hits.length) {
+        hits.slice(0, 2).forEach(push);
+        for (let j = i; j < i + n; j++) claimed[j] = true;
+        continue;
+      }
+      if (n === 1) {
+        const cands = entityMaps.byLast.get(gram);
+        if (!cands) continue;
+        // Qualify with the preceding token as a first-name prefix:
+        // "chris jones" -> only the Jones whose first name starts with "chris".
+        const prev = i > 0 && !claimed[i - 1] ? tokens[i - 1] : null;
+        let matched = cands;
+        if (prev && prev.length >= 3) {
+          const qualified = cands.filter(s =>
+            s.first_name.toLowerCase().startsWith(prev) || prev.startsWith(s.first_name.toLowerCase()));
+          if (qualified.length) { matched = qualified; claimed[i - 1] = true; }
+        }
+        matched.slice(0, 3).forEach(s => push(surgeonSuggestion(s)));
+        claimed[i] = true;
+      }
+    }
+  }
+  return out.slice(0, 5);
+}
 
 // Match ranking (V4.6.1, John 2026-06-11): an entity whose NAME is what you
 // typed always outranks one merely ASSOCIATED with it. Typing "Doylestown
@@ -1813,7 +1912,7 @@ subjectInput.addEventListener('input', function() {
   const raw = this.value.trim();
   if (raw.length < 2) { renderSubjectSuggestions([], ''); return; }
   subjectSuggestTimer = setTimeout(() => {
-    renderSubjectSuggestions(buildSubjectResults(raw.toLowerCase()).slice(0, 3), raw);
+    renderSubjectSuggestions(extractEntityMentions(raw), raw);
   }, 200);
 });
 
@@ -2429,6 +2528,7 @@ async function saveNewSurgeon() {
 
     allSurgeons.push(data);
     allSurgeons.sort((a, b) => a.last_name.localeCompare(b.last_name));
+    entityMaps = null; // scanner maps pick up the new surgeon
     const displayName = data.last_name + ', ' + data.first_name + (data.credential ? ', ' + data.credential : '');
     // V4.6.0: new surgeon becomes a LINK chip (subject stays free text)
     addFormExtraLink({ type: 'surgeon', id: data.id, display: displayName });
