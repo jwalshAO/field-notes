@@ -1698,53 +1698,69 @@ async function loadSubjectEntities() {
 const subjectInput = document.getElementById('subjectInput');
 const acList = document.getElementById('autocompleteList');
 
+// Match ranking (V4.6.1, John 2026-06-11): an entity whose NAME is what you
+// typed always outranks one merely ASSOCIATED with it. Typing "Doylestown
+// Hospital" puts the hospital first, not the surgeons who operate there.
+// rank 3 = name starts with query · 2 = name contains it · 1 = association only
 function buildSubjectResults(q) {
   const results = [];
 
-  // Surgeons
+  // Surgeons (association field: primary_hospital)
   allSurgeons.filter(s => {
     const full = (s.last_name + ' ' + s.first_name + ' ' + (s.primary_hospital || '')).toLowerCase();
     return full.includes(q);
   }).slice(0, 6).forEach(s => {
     const displayName = s.last_name + ', ' + s.first_name + (s.credential ? ', ' + s.credential : '');
     const isActive = s.status === 'regular_user' || s.funnel_stage === 'active';
+    const firstLast = (s.first_name + ' ' + s.last_name).toLowerCase();
+    const lastFirst = (s.last_name + ' ' + s.first_name).toLowerCase();
+    const rank = (firstLast.startsWith(q) || lastFirst.startsWith(q) || s.last_name.toLowerCase().startsWith(q)) ? 3
+               : (firstLast.includes(q) || lastFirst.includes(q)) ? 2 : 1;
     results.push({
       type: 'surgeon', id: s.id, display: displayName,
       detail: s.primary_hospital || '',
       badge: 'Surgeon',
       badgeClass: isActive ? 'badge-active' : 'badge-prospect',
+      rank,
       raw: s
     });
   });
 
-  // Hospitals / Facilities
+  // Hospitals / Facilities (association field: city)
   allLocations.filter(l => {
     return (l.name + ' ' + (l.city || '')).toLowerCase().includes(q);
   }).slice(0, 4).forEach(l => {
     const loc = l.city && l.state ? l.city + ', ' + l.state : '';
+    const name = l.name.toLowerCase();
+    const rank = name.startsWith(q) ? 3 : name.includes(q) ? 2 : 1;
     results.push({
       type: 'hospital', id: l.id, display: l.name,
       detail: loc,
       badge: 'Hospital',
       badgeClass: 'badge-hospital',
+      rank,
       raw: l
     });
   });
 
-  // Manufacturers (our lines)
+  // Manufacturers (association field: product_focus)
   allManufacturers.filter(m => {
     return (m.name + ' ' + (m.short_name || '') + ' ' + (m.product_focus || '')).toLowerCase().includes(q);
   }).slice(0, 3).forEach(m => {
+    const name = m.name.toLowerCase(), short = (m.short_name || '').toLowerCase();
+    const rank = (name.startsWith(q) || (short && short.startsWith(q))) ? 3
+               : (name.includes(q) || (short && short.includes(q))) ? 2 : 1;
     results.push({
       type: 'manufacturer', id: m.id, display: m.name,
       detail: m.product_focus || '',
       badge: 'Manufacturer',
       badgeClass: 'badge-manufacturer',
+      rank,
       raw: m
     });
   });
 
-  // Competitors
+  // Competitors (name only — always an explicit match)
   allCompetitors.filter(c => {
     return c.name.toLowerCase().includes(q);
   }).slice(0, 4).forEach(c => {
@@ -1753,24 +1769,31 @@ function buildSubjectResults(q) {
       detail: '',
       badge: 'Competitor',
       badgeClass: 'badge-competitor',
+      rank: c.name.toLowerCase().startsWith(q) ? 3 : 2,
       raw: c
     });
   });
 
-  // Products (Agility lines — searchable by name, code, or alias)
+  // Products (name, code, or alias — aliases ARE names for products)
   allProducts.filter(p => {
     const hay = (p.name + ' ' + (p.short_name || '') + ' ' + (Array.isArray(p.aliases) ? p.aliases.join(' ') : '')).toLowerCase();
     return hay.includes(q);
   }).slice(0, 3).forEach(p => {
+    const name = p.name.toLowerCase(), short = (p.short_name || '').toLowerCase();
+    const aliasHit = Array.isArray(p.aliases) && p.aliases.some(a => a.toLowerCase().startsWith(q));
+    const rank = (name.startsWith(q) || short.startsWith(q) || aliasHit) ? 3 : 2;
     results.push({
       type: 'product', id: p.id, display: p.name,
       detail: p.short_name || '',
       badge: 'Product',
       badgeClass: 'badge-product',
+      rank,
       raw: p
     });
   });
 
+  // Explicit-name matches first; ties keep the section order above.
+  results.sort((a, b) => (b.rank || 0) - (a.rank || 0));
   return results;
 }
 
