@@ -222,6 +222,7 @@
     .badge-hospital { background: var(--purple-100); color: var(--purple-500); }
     .badge-manufacturer { background: var(--teal-100); color: var(--teal-500); }
     .badge-competitor { background: var(--red-100); color: var(--red-600); }
+    .badge-product { background: var(--blue-100, #dbeafe); color: var(--blue-600, #2563eb); }
     .autocomplete-create {
       padding: 12px 14px;
       cursor: pointer;
@@ -1359,6 +1360,7 @@ let allSurgeons = [];
 let allLocations = [];
 let allManufacturers = [];
 let allCompetitors = [];
+let allProducts = [];
 let allNotes = [];
 let selectedTags = [];
 let selectedSubject = null;  // { type: 'surgeon'|'hospital'|'manufacturer'|'competitor', id: N, display: '...' }
@@ -1674,16 +1676,18 @@ async function logout() {
 // SUBJECT ENTITIES (for autocomplete)
 // ============================================================
 async function loadSubjectEntities() {
-  const [surgeons, locations, manufacturers, competitors] = await Promise.all([
+  const [surgeons, locations, manufacturers, competitors, products] = await Promise.all([
     sb.from('surgeons').select('id, first_name, last_name, credential, primary_hospital, status, specialty, funnel_stage').order('last_name'),
     sb.from('locations').select('id, name, city, state, category').eq('active', true).order('name'),
     sb.from('manufacturers').select('id, name, short_name, product_focus, status').order('name'),
-    sb.from('competitors').select('id, name, category').eq('active', true).order('name')
+    sb.from('competitors').select('id, name, category').eq('active', true).order('name'),
+    sb.from('products').select('id, name, short_name, aliases').eq('active', true).order('name')
   ]);
   allSurgeons = surgeons.data || [];
   allLocations = locations.data || [];
   allManufacturers = manufacturers.data || [];
   allCompetitors = competitors.data || [];
+  allProducts = products.data || [];
 }
 
 // ============================================================
@@ -1748,6 +1752,20 @@ function buildSubjectResults(q) {
       badge: 'Competitor',
       badgeClass: 'badge-competitor',
       raw: c
+    });
+  });
+
+  // Products (Agility lines — searchable by name, code, or alias)
+  allProducts.filter(p => {
+    const hay = (p.name + ' ' + (p.short_name || '') + ' ' + (Array.isArray(p.aliases) ? p.aliases.join(' ') : '')).toLowerCase();
+    return hay.includes(q);
+  }).slice(0, 3).forEach(p => {
+    results.push({
+      type: 'product', id: p.id, display: p.name,
+      detail: p.short_name || '',
+      badge: 'Product',
+      badgeClass: 'badge-product',
+      raw: p
     });
   });
 
@@ -3152,7 +3170,17 @@ function showConfirmModal(parsed) {
   } else {
     confirmVisibility = 'team';
   }
+  // Seed "Also link" with the Agility products Q detected in the conversation
+  // (adoption-tracking). Rep can × any wrong one before submitting.
   confirmExtraLinks = [];
+  if (Array.isArray(parsed.product_ids)) {
+    parsed.product_ids.forEach(pid => {
+      const prod = allProducts.find(p => p.id === pid);
+      if (prod && !confirmExtraLinks.some(l => l.type === 'product' && l.id === pid)) {
+        confirmExtraLinks.push({ type: 'product', id: prod.id, display: prod.name });
+      }
+    });
+  }
   renderConfirmExtraChips();
   const extraInput = document.getElementById('confirmExtraInput');
   if (extraInput) extraInput.value = '';
@@ -3238,7 +3266,7 @@ function closeConfirmModalBack() {
 // Q still parses one primary subject; this lets the rep attach extras (more
 // surgeons, a facility, a competitor…) in one tap. Written to field_note_subjects
 // via link_note_subject after the note saves.
-let confirmExtraLinks = [];   // [{ type, id, display }] — type ∈ surgeon/hospital/manufacturer/competitor
+let confirmExtraLinks = [];   // [{ type, id, display }] — type ∈ surgeon/hospital/manufacturer/competitor/product
 
 function mapLinkType(t) { return t === 'hospital' ? 'location' : t; }
 
