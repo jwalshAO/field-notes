@@ -2184,7 +2184,7 @@ function renderNotesFeed(filterTag = 'all') {
     }
     const isDeleted = !!n.deleted_at;
     const canDelete = !isDeleted && (n.rep_id === currentUser.id || isOwner);
-    const canToggleVis = !isDeleted && (n.rep_id === currentUser.id || isOwner);
+    const canToggleVis = !isDeleted && n.rep_id === currentUser.id; // author-only — visibility is the author's call (2026-06-11)
     const isShared = n.is_shared !== false; // null/undefined treat as shared default
     const visIcon = isShared ? '🌐' : '🔒';
     const visTitle = isShared
