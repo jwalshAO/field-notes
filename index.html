@@ -2233,7 +2233,7 @@ async function loadNotes() {
   let query = sb.from('field_notes')
     .select('*, reps!field_notes_rep_id_fkey(name, role, territory_id), surgeons(first_name, last_name, credential, primary_hospital), locations(name, city, state), manufacturers(name), competitors(name)')
     .eq('is_test', false)
-    .in('status', ['submitted', 'deleted'])
+    .eq('status', 'submitted') // deleted notes stay in the DB (full audit trail) but never in the feed
     .order('note_date', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(100);
@@ -2451,13 +2451,10 @@ async function softDeleteNote(noteId) {
     return;
   }
 
-  // Update local state and re-render
-  const note = allNotes.find(n => n.id === noteId);
-  if (note) {
-    note.deleted_at = new Date().toISOString();
-    note.deleted_by = authUser.id;
-    note.deleted_by_rep_id = currentUser.id;
-  }
+  // Remove from local state — a deleted note disappears immediately
+  // (it previously stayed as a faded "Deleted by" tombstone for the owner,
+  // which read as the delete having failed).
+  allNotes = allNotes.filter(n => String(n.id) !== String(noteId));
   renderNotesFeed();
 }
 
