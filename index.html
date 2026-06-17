@@ -1679,7 +1679,7 @@ async function logout() {
 // ============================================================
 async function loadSubjectEntities() {
   const [surgeons, locations, manufacturers, competitors, products] = await Promise.all([
-    sb.from('surgeons').select('id, first_name, last_name, credential, primary_hospital, status, specialty, funnel_stage').order('last_name'),
+    sb.from('surgeons').select('id, first_name, last_name, credential, primary_hospital, status, specialty, funnel_stage').is('archived_at', null).order('last_name').limit(2000),
     sb.from('locations').select('id, name, city, state, category, aliases').eq('active', true).order('name'),
     sb.from('manufacturers').select('id, name, short_name, product_focus, status').order('name'),
     sb.from('competitors').select('id, name, category').eq('active', true).order('name'),
